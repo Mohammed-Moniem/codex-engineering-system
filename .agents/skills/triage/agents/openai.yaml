@@ -1,0 +1,6 @@
+interface:
+  display_name: "Triage"
+  short_description: "Turn a raw request into an agent-ready brief"
+  default_prompt: "Use $triage to verify and classify this incoming engineering request."
+policy:
+  allow_implicit_invocation: true

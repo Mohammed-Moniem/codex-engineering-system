@@ -1,0 +1,104 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import subprocess
+import sys
+import unittest
+
+
+ROOT = Path(__file__).resolve().parent.parent
+HOOK = ROOT / "hooks" / "pre_tool_use.py"
+
+
+def run_hook(command: object, raw: str | None = None) -> tuple[int, str, str]:
+    payload = raw
+    if payload is None:
+        payload = json.dumps(
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "Bash",
+                "tool_input": {"command": command},
+            }
+        )
+    result = subprocess.run(
+        [sys.executable, str(HOOK)],
+        input=payload,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=5,
+    )
+    return result.returncode, result.stdout, result.stderr
+
+
+class PreToolUseTests(unittest.TestCase):
+    DENY = [
+        "git reset --hard",
+        "/usr/bin/git -C repo reset --hard",
+        "env X=1 command git clean -fdx",
+        "git clean --force -d",
+        "git checkout -- path",
+        "git restore path",
+        "git branch -D feature",
+        "git stash clear",
+        "git stash drop",
+        "git push --force",
+        "git push -f origin main",
+        "git reflog expire --expire=now --all",
+        "git gc --prune=now",
+        "sh -c 'git reset --hard'",
+        "echo ok; git clean -fd",
+        "echo $(git reset --hard)",
+        'g""it re\\set --ha\\rd',
+        'op=reset; git "$op" --hard',
+        "git rm important.txt",
+        "git filter-branch -- --all",
+    ]
+
+    ALLOW = [
+        "git status",
+        "git diff -- .",
+        "git reset --soft HEAD~",
+        "git clean -ndx",
+        "git clean -nfd",
+        "git checkout main",
+        "git restore --staged path",
+        "printf '%s' 'git reset --hard'",
+        "sh -c 'printf \"%s\" \"git clean -fd\"'",
+    ]
+
+    def test_denies_destructive_commands_without_reflection(self) -> None:
+        for command in self.DENY:
+            with self.subTest(command=command):
+                code, stdout, stderr = run_hook(command)
+                self.assertEqual(0, code)
+                self.assertEqual("", stderr)
+                output = json.loads(stdout)
+                decision = output["hookSpecificOutput"]
+                self.assertEqual("deny", decision["permissionDecision"])
+                self.assertNotIn(command, stdout)
+
+    def test_allows_benign_commands(self) -> None:
+        for command in self.ALLOW:
+            with self.subTest(command=command):
+                code, stdout, stderr = run_hook(command)
+                self.assertEqual((0, "", ""), (code, stdout, stderr))
+
+    def test_malformed_payloads_fail_closed(self) -> None:
+        payloads = [
+            "not-json",
+            "{}",
+            '{"hook_event_name":"PreToolUse","hook_event_name":"PreToolUse"}',
+            json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": ["git", "status"]}}),
+            json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Other", "tool_input": {"command": "git status"}}),
+        ]
+        for payload in payloads:
+            with self.subTest(payload=payload[:40]):
+                code, stdout, _ = run_hook("", raw=payload)
+                self.assertEqual(0, code)
+                self.assertEqual("deny", json.loads(stdout)["hookSpecificOutput"]["permissionDecision"])
+
+
+if __name__ == "__main__":
+    unittest.main()

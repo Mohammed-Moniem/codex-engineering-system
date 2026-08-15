@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Council"
+  short_description: "Review changes across independent risk-based axes"
+  default_prompt: "Use $review-council to review this change for spec and code correctness."
+policy:
+  allow_implicit_invocation: true

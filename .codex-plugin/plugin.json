@@ -1,0 +1,28 @@
+{
+  "name": "codex-engineering-system",
+  "version": "0.1.0",
+  "description": "A Codex-first system for planning, discovery, delivery, and engineering quality.",
+  "author": {
+    "name": "Codex Engineering System Contributors",
+    "url": "https://github.com/Mohammed-Moniem/codex-engineering-system"
+  },
+  "homepage": "https://github.com/Mohammed-Moniem/codex-engineering-system#readme",
+  "repository": "https://github.com/Mohammed-Moniem/codex-engineering-system",
+  "license": "MIT",
+  "keywords": ["codex", "engineering", "planning", "skills", "wayfinder"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Engineering System",
+    "shortDescription": "Plan, decide, build, and verify with Codex.",
+    "longDescription": "Composable Codex-first engineering workflows, from quick planning through multi-session decision mapping, specification, delivery, debugging, and review.",
+    "developerName": "Codex Engineering System Contributors",
+    "category": "Developer Tools",
+    "capabilities": ["Planning", "Research", "Code"],
+    "websiteURL": "https://github.com/Mohammed-Moniem/codex-engineering-system",
+    "defaultPrompt": [
+      "Choose the right planning depth for this task.",
+      "Map this uncertain effort with Wayfinder.",
+      "Turn these decisions into verifiable tickets."
+    ]
+  }
+}

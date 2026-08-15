@@ -1,0 +1,6 @@
+interface:
+  display_name: "Questionnaire"
+  short_description: "Gather unavailable knowledge from a human expert"
+  default_prompt: "Use $questionnaire to prepare the missing questions for the right stakeholder."
+policy:
+  allow_implicit_invocation: false

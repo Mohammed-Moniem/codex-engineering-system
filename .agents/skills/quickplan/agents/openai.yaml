@@ -1,0 +1,6 @@
+interface:
+  display_name: "Quickplan"
+  short_description: "Create a fast plan for a clear bounded change"
+  default_prompt: "Use $quickplan to plan this small, well-defined engineering change."
+policy:
+  allow_implicit_invocation: true

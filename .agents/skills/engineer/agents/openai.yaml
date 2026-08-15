@@ -1,0 +1,6 @@
+interface:
+  display_name: "Engineer"
+  short_description: "Route engineering work to the right workflow"
+  default_prompt: "Use $engineer to choose and run the right workflow for this engineering task."
+policy:
+  allow_implicit_invocation: true

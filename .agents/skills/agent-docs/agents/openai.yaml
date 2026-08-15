@@ -1,0 +1,6 @@
+interface:
+  display_name: "Agent Docs"
+  short_description: "Maintain concise single-source Codex documentation"
+  default_prompt: "Use $agent-docs to update these Codex instructions with progressive disclosure."
+policy:
+  allow_implicit_invocation: true

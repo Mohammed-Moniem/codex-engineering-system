@@ -1,0 +1,6 @@
+interface:
+  display_name: "Setup Engineering"
+  short_description: "Adopt the workflows without replacing repo conventions"
+  default_prompt: "Use $setup-engineering to configure this repository's engineering workflow safely."
+policy:
+  allow_implicit_invocation: false

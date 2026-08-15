@@ -1,0 +1,6 @@
+interface:
+  display_name: "Wizard"
+  short_description: "Guide a deterministic human-only procedure"
+  default_prompt: "Use $wizard to guide this setup or cutover one verified checkpoint at a time."
+policy:
+  allow_implicit_invocation: false

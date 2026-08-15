@@ -1,0 +1,32 @@
+name: Workflow proposal
+description: Propose a new skill or material workflow change
+title: "[Proposal]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: User outcome
+      description: What recognizable task should become more reliable?
+    validations:
+      required: true
+  - type: textarea
+    id: triggers
+    attributes:
+      label: Positive and negative triggers
+      description: Give prompts that should and should not select the workflow.
+    validations:
+      required: true
+  - type: textarea
+    id: composition
+    attributes:
+      label: Composition
+      description: Explain why this is a new skill instead of a reference or change to an existing skill.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Expected artifact or result
+    validations:
+      required: true

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Domain"
+  short_description: "Maintain glossary, invariants, and selective ADRs"
+  default_prompt: "Use $domain to update the domain vocabulary and durable rules for this project."
+policy:
+  allow_implicit_invocation: true

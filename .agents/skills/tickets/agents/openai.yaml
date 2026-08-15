@@ -1,0 +1,6 @@
+interface:
+  display_name: "Tickets"
+  short_description: "Slice a specification into verifiable delivery work"
+  default_prompt: "Use $tickets to convert this specification into dependency-aware delivery slices."
+policy:
+  allow_implicit_invocation: false

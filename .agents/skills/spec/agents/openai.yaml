@@ -1,0 +1,6 @@
+interface:
+  display_name: "Spec"
+  short_description: "Synthesize resolved decisions into a complete spec"
+  default_prompt: "Use $spec to turn the resolved planning artifacts into an implementation-ready specification."
+policy:
+  allow_implicit_invocation: false

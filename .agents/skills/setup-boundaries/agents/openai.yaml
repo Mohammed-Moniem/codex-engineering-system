@@ -1,0 +1,6 @@
+interface:
+  display_name: "Setup Boundaries"
+  short_description: "Add repository-adapted TypeScript import boundaries"
+  default_prompt: "Use $setup-boundaries to design and prove module-boundary enforcement for this repository."
+policy:
+  allow_implicit_invocation: false

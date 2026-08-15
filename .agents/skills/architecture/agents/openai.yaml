@@ -1,0 +1,6 @@
+interface:
+  display_name: "Architecture"
+  short_description: "Find evidence-backed architecture improvement candidates"
+  default_prompt: "Use $architecture to analyze this structural pain and rank improvement candidates."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Research"
+  short_description: "Produce sourced evidence for an engineering decision"
+  default_prompt: "Use $research to answer this engineering question with decision-linked evidence."
+policy:
+  allow_implicit_invocation: true

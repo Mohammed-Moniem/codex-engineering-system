@@ -1,0 +1,6 @@
+interface:
+  display_name: "Grill"
+  short_description: "Resolve bounded human decisions in dependency order"
+  default_prompt: "Use $grill to resolve the human decisions blocking this design."
+policy:
+  allow_implicit_invocation: true

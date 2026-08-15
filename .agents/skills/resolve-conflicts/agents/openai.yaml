@@ -1,0 +1,6 @@
+interface:
+  display_name: "Resolve Conflicts"
+  short_description: "Resolve Git conflicts from source intent and evidence"
+  default_prompt: "Use $resolve-conflicts to resolve this Git conflict and verify both sides' intent."
+policy:
+  allow_implicit_invocation: true
