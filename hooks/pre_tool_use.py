@@ -152,10 +152,6 @@ def has_short_flag(args: list[str], flag: str) -> bool:
     return any(token.startswith("-") and not token.startswith("--") and flag in token[1:] for token in args)
 
 
-def has_long_flag(args: list[str], flag: str) -> bool:
-    return any(token == flag or token.startswith(flag + "=") for token in args)
-
-
 def has_long_prefix(args: list[str], prefix: str) -> bool:
     return any(token.startswith(prefix) for token in args if token.startswith("--"))
 
@@ -163,6 +159,37 @@ def has_long_prefix(args: list[str], prefix: str) -> bool:
 def executable_name(token: str) -> str:
     name = os.path.basename(token).casefold()
     return name[:-4] if name.endswith(".exe") else name
+
+
+def clean_is_dry_run(args: list[str]) -> bool:
+    """Recognize -n without mistaking an exclude pattern for an option."""
+    skip_next = False
+    for token in args:
+        if skip_next:
+            skip_next = False
+            continue
+        if token == "--":
+            break
+        if token.startswith("--"):
+            if token.startswith("--dry"):
+                return True
+            if token == "--exclude":
+                skip_next = True
+            continue
+        if not token.startswith("-") or token == "-":
+            continue
+        index = 0
+        flags = token[1:]
+        while index < len(flags):
+            flag = flags[index]
+            if flag == "n":
+                return True
+            if flag == "e":
+                if index + 1 == len(flags):
+                    skip_next = True
+                break
+            index += 1
+    return False
 
 
 def destructive(args: list[str]) -> bool:
@@ -175,16 +202,9 @@ def destructive(args: list[str]) -> bool:
     if subcommand == "reset":
         return any(has_long_prefix(rest, prefix) for prefix in ("--h", "--mer", "--k"))
     if subcommand == "clean":
-        dry = has_long_flag(rest, "--dry-run") or has_short_flag(rest, "n")
-        return not dry
+        return not clean_is_dry_run(rest)
     if subcommand == "checkout":
-        if "--" in rest or "." in rest or has_long_prefix(rest, "--f") or has_short_flag(rest, "f"):
-            return True
-        if any(token.startswith("-B") for token in rest):
-            return True
-        positional = [token for token in rest if not token.startswith("-")]
-        creating = "-b" in rest or "--branch" in rest
-        return len(positional) >= 2 and not creating
+        return True
     if subcommand == "restore":
         return "--staged" not in rest or has_short_flag(rest, "W") or has_long_prefix(rest, "--work")
     if subcommand == "branch":
@@ -196,6 +216,8 @@ def destructive(args: list[str]) -> bool:
     if subcommand == "reflog":
         return bool(rest and rest[0] in {"expire", "delete"})
     if subcommand == "gc":
+        return True
+    if subcommand == "maintenance":
         return True
     if subcommand == "rm":
         return "--cached" not in rest
@@ -211,6 +233,8 @@ def destructive(args: list[str]) -> bool:
         )
     if subcommand == "tag":
         return has_short_flag(rest, "d") or has_long_prefix(rest, "--del")
+    if subcommand == "submodule":
+        return "foreach" in rest
     return subcommand in {"filter-branch", "filter-repo"}
 
 
@@ -233,7 +257,7 @@ def command_is_destructive(command: str, depth: int = 0) -> bool:
             if base == "eval":
                 raise RuntimeError(DYNAMIC_REASON)
             if base == "env" and any(
-                option.startswith("-S") or option.startswith("--split-string") for option in part[position + 1:]
+                option.startswith("-S") or option.startswith("--s") for option in part[position + 1:]
             ):
                 raise RuntimeError(DYNAMIC_REASON)
             if base in SHELLS:

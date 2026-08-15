@@ -59,6 +59,12 @@ class SkillContractTests(unittest.TestCase):
         self.assertTrue(validator.workflow_policy_errors(spaced_permission))
         quoted_action = safe.replace("uses: actions/checkout", '"uses": actions/checkout', 1)
         self.assertTrue(validator.workflow_policy_errors(quoted_action))
+        flow_mapping = safe.replace(
+            "  validate:\n",
+            "  exfil: {runs-on: ubuntu-latest, permissions: write-all, steps: [{run: true}]}\n  validate:\n",
+            1,
+        )
+        self.assertTrue(validator.workflow_policy_errors(flow_mapping))
 
     def test_every_workflow_is_covered_by_policy_validation(self) -> None:
         source = (ROOT / "scripts" / "validate_repo.py").read_text(encoding="utf-8")
@@ -74,6 +80,11 @@ class SkillContractTests(unittest.TestCase):
         text = (ROOT / ".agents" / "skills" / "debug" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("For diagnosis-only requests", text)
         self.assertIn("do not implement a fix", text)
+
+    def test_build_requires_explicit_commit_authority(self) -> None:
+        text = (ROOT / ".agents" / "skills" / "build" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("only when the user explicitly requested a commit", text)
+        self.assertIn("never supply commit authority", text)
 
 
 if __name__ == "__main__":

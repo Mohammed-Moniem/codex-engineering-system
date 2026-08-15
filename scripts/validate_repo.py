@@ -266,12 +266,17 @@ def validate_python(check: Validation) -> None:
 def workflow_policy_errors(text: str) -> list[str]:
     errors: list[str] = []
     lines = text.splitlines()
+    without_expressions = re.sub(r"\$\{\{.*?\}\}", "", text, flags=re.DOTALL)
     if "\t" in text or re.search(r"(?m)^\s*(?:-\s*)?[A-Za-z_][A-Za-z0-9_-]*\s+:.*$", text):
         errors.append("workflow must use canonical key syntax without tabs or space-before-colon aliases")
     if re.search(r'''(?m)^\s*(?:-\s*)?["'][^"']+["']\s*:.*$''', text):
         errors.append("quoted YAML mapping keys are forbidden")
     if re.search(r"(?m)(?:^|\s)(?:[&*][A-Za-z0-9_-]+|<<:)(?:\s|$)", text):
         errors.append("YAML anchors, aliases, and merge keys are forbidden")
+    if any(marker in without_expressions for marker in ("{", "}", "[", "]")):
+        errors.append("YAML flow collections are forbidden")
+    if re.search(r"(?m)^\s*\?\s+", text):
+        errors.append("explicit complex YAML keys are forbidden")
     permission_roots = [index for index, line in enumerate(lines) if line == "permissions:"]
     if len(permission_roots) != 1:
         errors.append("workflow must contain exactly one top-level permissions block")

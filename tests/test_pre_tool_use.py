@@ -71,6 +71,7 @@ class PreToolUseTests(unittest.TestCase):
         "env -u UNUSED git reset --hard",
         "env -S 'git reset --hard'",
         "env -Sgit reset --hard",
+        "env --split=git reset --hard",
         "env.exe -S 'git reset --hard'",
         "{ git reset --hard; }",
         "if true; then git reset --hard; fi",
@@ -81,6 +82,7 @@ class PreToolUseTests(unittest.TestCase):
         "g{i..i}t reset --hard",
         "FLAG=--hard; git reset \"$FLAG\"",
         "git reset --h",
+        "git checkout main",
         "git checkout HEAD important.txt",
         "git checkout -Bmain HEAD~1",
         "git branch -df feature",
@@ -93,6 +95,9 @@ class PreToolUseTests(unittest.TestCase):
         "git.exe reset --hard",
         "git tag -d release",
         "git worktree remove old-tree",
+        "git clean -en -fdx",
+        "git -c gc.pruneExpire=now maintenance run --task=gc",
+        "git submodule foreach 'git reset --hard'",
     ]
 
     ALLOW = [
@@ -101,7 +106,7 @@ class PreToolUseTests(unittest.TestCase):
         "git reset --soft HEAD~",
         "git clean -ndx",
         "git clean -nfd",
-        "git checkout main",
+        "git switch main",
         "git restore --staged path",
         "printf '%s' 'git reset --hard'",
         "sh -c 'printf \"%s\" \"git clean -fd\"'",
