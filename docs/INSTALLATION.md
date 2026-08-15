@@ -14,7 +14,7 @@ Clone without checking out the mutable default branch, then switch directly to t
 ```bash
 git clone --no-checkout https://github.com/Mohammed-Moniem/codex-engineering-system.git
 cd codex-engineering-system
-git switch --detach 77189d7a990cdf101147678de5f372b1d37adfba
+git switch --detach d23d97c58f060c68bd23bb414bc9d51389b2a004
 codex
 ```
 
@@ -26,7 +26,7 @@ Ask the built-in `$skill-installer` to install a GitHub repository subpath pinne
 
 ```text
 $skill-installer Install the wayfinder skill from
-https://github.com/Mohammed-Moniem/codex-engineering-system/tree/77189d7a990cdf101147678de5f372b1d37adfba/.agents/skills/wayfinder
+https://github.com/Mohammed-Moniem/codex-engineering-system/tree/d23d97c58f060c68bd23bb414bc9d51389b2a004/.agents/skills/wayfinder
 ```
 
 Individual skill directories are self-contained; references, assets, and scripts do not reach outside their skill.
@@ -36,7 +36,7 @@ Individual skill directories are self-contained; references, assets, and scripts
 Add this repository as a Git marketplace, then install the plugin:
 
 ```bash
-codex plugin marketplace add Mohammed-Moniem/codex-engineering-system --ref 77189d7a990cdf101147678de5f372b1d37adfba
+codex plugin marketplace add Mohammed-Moniem/codex-engineering-system --ref d23d97c58f060c68bd23bb414bc9d51389b2a004
 codex plugin add codex-engineering-system@codex-engineering-system
 ```
 
