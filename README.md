@@ -5,12 +5,12 @@ Three planning depths, one composable engineering flow for ChatGPT and Codex.
 | Planning depth | ChatGPT desktop | Codex CLI / IDE | Use it for |
 | --- | --- | --- | --- |
 | Fast bounded plan | `@quickplan` | `$quickplan` | Small changes with clear requirements and architecture |
-| Standard plan | `@plan` | `$plan` | Ordinary non-trivial features, refactors, and integrations |
+| Standard plan (`@plan` / `$plan` tier) | Native Plan control when available; otherwise `@standard-plan` | Native Plan mode when available; otherwise `$standard-plan` | Ordinary non-trivial features, refactors, and integrations |
 | Deep decision map | `@wayfinder` | `$wayfinder` | Large, foggy, multi-session efforts with unresolved decisions |
 
 Describe work normally and the `engineer` router can choose a workflow. Explicit skill mentions override routing.
 
-> Why no custom `plan` directory? Codex includes a system `plan` skill. Duplicate skill names are shown separately, not merged, so this project deliberately uses native Plan as its middle tier. The mental model remains `quickplan` → `plan` → `wayfinder` without selector ambiguity.
+> `@plan` and `$plan` are the mental label for the middle tier, not a portable skill selector. Current hosts may expose Plan as a collaboration mode instead. Use that native control when present; the guaranteed explicit fallback shipped here is `@standard-plan` / `$standard-plan`. The repository deliberately avoids a custom `plan` name that could collide with a host-provided selector.
 
 ## What this is
 
@@ -20,7 +20,7 @@ Codex Engineering System is a skills-only plugin and repo-scoped skill collectio
 flowchart LR
     A["Engineering request"] --> R{"Engineer router"}
     R -->|"small and clear"| Q["Quickplan"]
-    R -->|"bounded, non-trivial"| P["Native Plan"]
+    R -->|"bounded, non-trivial"| P["Native Plan mode / Standard Plan"]
     R -->|"large or foggy"| W["Wayfinder"]
     R -->|"hard bug"| D["Debug"]
     R -->|"raw request"| T["Triage"]
@@ -80,7 +80,8 @@ Public one-click discovery still requires submission to the universal plugin dir
 | --- | --- | --- | --- |
 | `@engineer` / `$engineer` | Let the router choose the workflow | “Add team invitations” | Selected route and next artifact |
 | `@quickplan` / `$quickplan` | Small, clear change | “Rename this API field” | Compact plan, assumptions, checks |
-| `@plan` / `$plan` | Ordinary feature or refactor | “Add saved searches” | Native standard implementation plan |
+| Native Plan mode (`@plan` / `$plan` only if the host lists it) | Ordinary feature or refactor | “Add saved searches” | Native standard implementation plan |
+| `@standard-plan` / `$standard-plan` | Portable standard-tier fallback | “Plan saved searches” | Complete ordered implementation plan |
 | `@wayfinder` / `$wayfinder` | Large, uncertain effort | “Design offline sync” | Persistent decision map and frontier |
 | `@grill` / `$grill` | One-session design choices | “Clarify account deletion” | Dependency-ordered human decisions |
 | `@domain` / `$domain` | Domain vocabulary and durable rules | “Define order lifecycle terms” | Glossary, invariants, selective ADRs |

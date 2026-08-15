@@ -9,6 +9,7 @@ from collections.abc import Iterable
 import hashlib
 import json
 import math
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -26,6 +27,7 @@ def detector_patterns() -> list[tuple[str, re.Pattern[str]]]:
     return [
         ("private-key", re.compile("-----BEGIN " + r"(?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----")),
         ("github-token", re.compile("gh" + r"[pousr]_[A-Za-z0-9]{30,}")),
+        ("github-fine-grained-token", re.compile("github" + r"_pat_[A-Za-z0-9_]{20,}")),
         ("aws-access-key", re.compile(r"(?:AKIA|ASIA)[0-9A-Z]{16}")),
         ("slack-token", re.compile("xo" + r"x[baprs]-[A-Za-z0-9-]{20,}")),
         ("stripe-live-secret", re.compile("sk" + r"_live_[A-Za-z0-9]{16,}")),
@@ -74,6 +76,12 @@ def report_label(value: str) -> str:
     return safe_label(value)
 
 
+def git_environment() -> dict[str, str]:
+    environment = os.environ.copy()
+    environment["GIT_NO_REPLACE_OBJECTS"] = "1"
+    return environment
+
+
 def run_git(
     args: list[str], input_text: str | None = None, root: Path = ROOT
 ) -> subprocess.CompletedProcess[str]:
@@ -84,6 +92,7 @@ def run_git(
         text=True,
         capture_output=True,
         check=False,
+        env=git_environment(),
         timeout=30,
     )
 
@@ -94,6 +103,7 @@ def worktree_files(root: Path = ROOT) -> Iterable[tuple[str, bytes]]:
         cwd=root,
         capture_output=True,
         check=False,
+        env=git_environment(),
         timeout=10,
     )
     if listed.returncode == 0:
@@ -128,6 +138,7 @@ def index_records(root: Path = ROOT) -> Iterable[tuple[str, bytes]]:
         cwd=root,
         capture_output=True,
         check=False,
+        env=git_environment(),
         timeout=10,
     )
     if listed.returncode != 0:
@@ -150,6 +161,7 @@ def index_records(root: Path = ROOT) -> Iterable[tuple[str, bytes]]:
             capture_output=True,
             text=True,
             check=False,
+            env=git_environment(),
             timeout=10,
         )
         if size.returncode != 0:
@@ -161,6 +173,7 @@ def index_records(root: Path = ROOT) -> Iterable[tuple[str, bytes]]:
             cwd=root,
             capture_output=True,
             check=False,
+            env=git_environment(),
             timeout=10,
         )
         if blob.returncode != 0:
@@ -191,6 +204,16 @@ def history_records(root: Path = ROOT) -> Iterable[tuple[str, bytes]]:
     inside = run_git(["rev-parse", "--is-inside-work-tree"], root=root)
     if inside.returncode != 0:
         return
+    replacements = run_git(["for-each-ref", "--format=%(refname)", "refs/replace/"], root=root)
+    if replacements.returncode != 0:
+        raise RuntimeError("unable to inspect Git replacement references")
+    if replacements.stdout.strip():
+        raise RuntimeError("history scan refuses Git replacement references")
+    graft_location = run_git(["rev-parse", "--path-format=absolute", "--git-path", "info/grafts"], root=root)
+    if graft_location.returncode != 0 or not graft_location.stdout.strip():
+        raise RuntimeError("unable to resolve the Git graft path")
+    if os.path.lexists(graft_location.stdout.strip()):
+        raise RuntimeError("history scan refuses Git grafts")
     shallow = run_git(["rev-parse", "--is-shallow-repository"], root=root)
     if shallow.returncode == 0 and shallow.stdout.strip() == "true":
         raise RuntimeError("history scan refuses a shallow repository")
@@ -212,6 +235,7 @@ def history_records(root: Path = ROOT) -> Iterable[tuple[str, bytes]]:
             cwd=root,
             capture_output=True,
             check=False,
+            env=git_environment(),
             timeout=30,
         )
         if tree.returncode != 0:
@@ -263,6 +287,7 @@ def history_records(root: Path = ROOT) -> Iterable[tuple[str, bytes]]:
             cwd=root,
             capture_output=True,
             check=False,
+            env=git_environment(),
             timeout=10,
         )
         if blob.returncode == 0:

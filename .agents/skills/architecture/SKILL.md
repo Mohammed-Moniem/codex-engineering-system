@@ -14,4 +14,4 @@ Use repository evidence rather than imposing a preferred vocabulary. Read [heuri
 5. Produce a small ranked set of candidates with benefit, cost, migration path, risk, and a proof step.
 6. Respect the project's established architecture unless evidence shows it is causing the named pain.
 
-Use deep-module ideas as heuristics, not doctrine. Do not refactor during diagnosis. Route value or boundary choices to `grill` or `wayfinder`; route an accepted candidate to native Plan.
+Use deep-module ideas as heuristics, not doctrine. Do not refactor during diagnosis. Route value or boundary choices to `grill` or `wayfinder`; route an accepted candidate to native Plan mode or `standard-plan`.

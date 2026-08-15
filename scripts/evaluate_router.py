@@ -23,9 +23,12 @@ ROUTES = {
 def route(prompt: str) -> str:
     text = prompt.casefold()
     text = re.sub(r"\b(?:do not|don't|without)\s+(?:use\s+)?[@$][a-z0-9-]+", "", text)
-    for name in ("quickplan", "plan", "wayfinder", "grill", "debug", "triage", "review-council", "architecture"):
+    for name in (
+        "quickplan", "standard-plan", "plan", "wayfinder", "grill", "debug", "triage",
+        "review-council", "architecture",
+    ):
         if re.search(rf"(?:^|\s)[@$]{re.escape(name)}\b", text):
-            return name
+            return "plan" if name == "standard-plan" else name
 
     if any(signal in text for signal in ("triage this", "raw bug report", "incoming request", "classify this issue")):
         return "triage"

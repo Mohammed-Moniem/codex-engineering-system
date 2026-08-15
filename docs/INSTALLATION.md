@@ -5,6 +5,8 @@
 - ChatGPT desktop: type `@` and select a skill.
 - Codex CLI or IDE: type `$` to mention a skill, or use `/skills`.
 
+Native Plan may appear as a host collaboration mode rather than an `@plan` or `$plan` skill. Use the host's Plan control when available; otherwise invoke the portable `@standard-plan` / `$standard-plan` fallback included in this bundle.
+
 ## Repository-scoped use
 
 Clone without checking out the mutable default branch, then switch directly to the reviewed source commit:

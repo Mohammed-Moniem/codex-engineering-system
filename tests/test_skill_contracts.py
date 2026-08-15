@@ -90,6 +90,34 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("only when the user explicitly requested a commit", text)
         self.assertIn("never supply commit authority", text)
 
+    def test_standard_plan_is_the_portable_middle_tier(self) -> None:
+        skills = ROOT / ".agents" / "skills"
+        self.assertFalse((skills / "plan").exists())
+        self.assertTrue((skills / "standard-plan" / "SKILL.md").is_file())
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("$standard-plan", readme)
+        self.assertIn("not a portable skill selector", readme)
+
+    def test_wayfinder_exit_covers_nonterminal_blockers(self) -> None:
+        skill = (ROOT / ".agents" / "skills" / "wayfinder" / "SKILL.md").read_text(encoding="utf-8")
+        schema = (ROOT / ".agents" / "skills" / "wayfinder" / "references" / "map-schema.md").read_text(
+            encoding="utf-8"
+        )
+        template = (ROOT / ".agents" / "skills" / "wayfinder" / "assets" / "MAP.md").read_text(
+            encoding="utf-8"
+        )
+        for status in ("OPEN", "CLAIMED", "BLOCKED", "REOPENED"):
+            self.assertIn(status, skill)
+            self.assertIn(status, template)
+        self.assertIn("`OPEN` or `REOPENED`", schema)
+        self.assertIn("cannot exit", schema)
+
+    def test_persistent_evidence_is_explicitly_untrusted(self) -> None:
+        wayfinder = (ROOT / ".agents" / "skills" / "wayfinder" / "SKILL.md").read_text(encoding="utf-8")
+        research = (ROOT / ".agents" / "skills" / "research" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("untrusted data", wayfinder)
+        self.assertIn("untrusted data", research)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -158,6 +158,12 @@ class PreToolUseTests(unittest.TestCase):
         r"printf '\147\151\164\000\162\145\163\145\164\000\055\055\150\141\162\144\000' | xargs -0",
         "bash script.sh",
         "parallel command ::: input",
+        "trap 'git reset --hard' EXIT",
+        "source ./script.sh",
+        ". ./script.sh",
+        ">output.txt trap 'git reset --hard' EXIT",
+        "> output.txt source ./script.sh",
+        "EXAMPLE=1 2>/dev/null . ./script.sh",
     ]
 
     ALLOW = [

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Standard Plan"
+  short_description: "Plan a bounded non-trivial engineering change"
+  default_prompt: "Use $standard-plan to create a complete implementation plan for this bounded engineering change."
+policy:
+  allow_implicit_invocation: true

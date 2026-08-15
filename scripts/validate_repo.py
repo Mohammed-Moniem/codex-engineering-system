@@ -149,7 +149,7 @@ def validate_skills(check: Validation) -> None:
         if not description or len(description) > 1024 or "TODO" in description:
             check.error(skill_file, "description is empty, too long, or unfinished")
         if name == "plan":
-            check.error(skill_file, "custom plan conflicts with Codex's system plan skill")
+            check.error(skill_file, "plan is reserved for host-native Plan mode; use standard-plan")
         metadata_path = folder / "agents" / "openai.yaml"
         if not metadata_path.is_file():
             check.error(folder, "agents/openai.yaml is required")

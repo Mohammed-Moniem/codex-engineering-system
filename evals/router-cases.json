@@ -1,6 +1,7 @@
 [
   {"id":"explicit-quickplan","prompt":"Use $quickplan for this change.","expected_route":"quickplan","reason":"Explicit override"},
-  {"id":"explicit-plan","prompt":"Use $plan for this ordinary feature.","expected_route":"plan","reason":"Native Plan override"},
+  {"id":"explicit-plan","prompt":"Use $plan for this ordinary feature.","expected_route":"plan","reason":"Standard-tier override when the host surfaces the selector"},
+  {"id":"explicit-standard-plan","prompt":"Use $standard-plan for this ordinary feature.","expected_route":"plan","reason":"Portable standard-tier override"},
   {"id":"explicit-wayfinder","prompt":"Use @wayfinder before we commit to a route.","expected_route":"wayfinder","reason":"Explicit deep-planning override"},
   {"id":"explicit-grill","prompt":"Use $grill to resolve the remaining choice.","expected_route":"grill","reason":"Explicit decision interview"},
   {"id":"explicit-debug","prompt":"Use $debug on this failure.","expected_route":"debug","reason":"Explicit diagnosis"},
@@ -10,7 +11,7 @@
   {"id":"trivial-typo","prompt":"Fix this typo in one string.","expected_route":"quickplan","reason":"Small clear work must not trigger Wayfinder"},
   {"id":"bounded-rename","prompt":"Rename this field; it is a small bounded change.","expected_route":"quickplan","reason":"Clear bounded implementation"},
   {"id":"ordinary-feature","prompt":"Add saved searches with persistence and tests.","expected_route":"plan","reason":"Bounded non-trivial feature"},
-  {"id":"ordinary-refactor","prompt":"Refactor the cache adapter and preserve behavior.","expected_route":"plan","reason":"Ordinary refactor defaults to native Plan"},
+  {"id":"ordinary-refactor","prompt":"Refactor the cache adapter and preserve behavior.","expected_route":"plan","reason":"Ordinary refactor defaults to the standard tier"},
   {"id":"foggy-effort","prompt":"This is a foggy multi-session effort across several systems.","expected_route":"wayfinder","reason":"Persistent uncertainty"},
   {"id":"offline-sync","prompt":"Design offline sync; the product and conflict model are still unclear across clients.","expected_route":"wayfinder","reason":"Broad dependent decisions"},
   {"id":"high-risk-depth","prompt":"Quickly do an authentication migration, no plan.","expected_route":"wayfinder","reason":"Explicit haste does not erase multi-system uncertainty"},

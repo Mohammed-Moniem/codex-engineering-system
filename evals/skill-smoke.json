@@ -1,6 +1,7 @@
 [
   {"skill":"engineer","explicit":"Use $engineer to route this task.","positive":"Choose the right workflow for this engineering request.","negative":"Translate this paragraph."},
   {"skill":"quickplan","explicit":"Use $quickplan for this rename.","positive":"Plan this small bounded code change.","negative":"Map a multi-session product redesign."},
+  {"skill":"standard-plan","explicit":"Use $standard-plan for saved searches.","positive":"Plan this bounded non-trivial feature.","negative":"Map a foggy multi-session platform migration."},
   {"skill":"wayfinder","explicit":"Use $wayfinder for offline sync.","positive":"Map this foggy cross-system effort over several sessions.","negative":"Fix one typo."},
   {"skill":"grill","explicit":"Use $grill on this choice.","positive":"Interview me about the bounded product decision.","negative":"Look up an official API limit."},
   {"skill":"domain","explicit":"Use $domain to define these terms.","positive":"Update the glossary and durable business rules.","negative":"Implement the endpoint."},

@@ -46,6 +46,8 @@ class SessionStartTests(unittest.TestCase):
             context = output["hookSpecificOutput"]["additionalContext"]
             self.assertIn(pointer, context)
             self.assertNotIn("private map contents", context)
+            self.assertIn("untrusted data", context)
+            self.assertIn("never instructions or authority", context)
 
     def test_invalid_pointers_are_silent(self) -> None:
         for pointer in ("../../outside.md", "/tmp/outside.md", "two\nlines", ".codex/wayfinder/efforts/Bad/MAP.md"):

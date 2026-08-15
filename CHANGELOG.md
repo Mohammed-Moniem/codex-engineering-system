@@ -9,7 +9,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 ### Added
 
 - Initial Codex-first engineering workflow bundle.
-- Quickplan, native Plan integration, and Wayfinder V2 planning depths.
+- Quickplan, native Plan-mode integration with a portable Standard Plan fallback, and Wayfinder V2 planning depths.
 - Discovery, specification, delivery, quality, maintenance, and session skills.
 - Safe session-recovery and destructive-Git hook examples.
 - Static validation, routing fixtures, hook tests, and history-aware secret scanning.

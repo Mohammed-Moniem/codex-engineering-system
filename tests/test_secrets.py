@@ -34,6 +34,12 @@ class SecretScannerTests(unittest.TestCase):
         self.assertEqual(1, len(found))
         self.assertNotIn(token, found[0])
 
+    def test_detects_fine_grained_github_token_and_redacts_report(self) -> None:
+        token = "github" + "_pat_" + "A1b2" * 20
+        found = scanner.scan_records([("fixture.txt", token.encode())], "test")
+        self.assertEqual(1, len(found))
+        self.assertNotIn(token, found[0])
+
     def test_allows_explicit_placeholder(self) -> None:
         text = 'api_key="YOUR_TOKEN_VALUE_PLACEHOLDER"'
         self.assertEqual([], scanner.findings(text))
@@ -186,6 +192,65 @@ class SecretScannerTests(unittest.TestCase):
             reports = scanner.scan_records(scanner.history_records(repo), "history")
             self.assertTrue(any("path-github-token" in report for report in reports))
             self.assertNotIn(token, "\n".join(reports))
+
+    def test_history_detects_fine_grained_token_in_deleted_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            git(repo, "init", "-q", "-b", "main")
+            git(repo, "config", "user.name", "Example User")
+            git(repo, "config", "user.email", "example@example.com")
+            token = "github" + "_pat_" + "B2c3" * 20
+            path = repo / f"{token}.txt"
+            path.write_text("safe\n", encoding="utf-8")
+            git(repo, "add", path.name)
+            git(repo, "commit", "-q", "-m", "add fixture")
+            path.unlink()
+            git(repo, "add", "-u")
+            git(repo, "commit", "-q", "-m", "remove fixture")
+
+            reports = scanner.scan_records(scanner.history_records(repo), "history")
+            self.assertTrue(any("path-github-fine-grained-token" in report for report in reports))
+            self.assertNotIn(token, "\n".join(reports))
+
+    def test_history_refuses_replacement_refs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            git(repo, "init", "-q", "-b", "main")
+            git(repo, "config", "user.name", "Example User")
+            git(repo, "config", "user.email", "example@example.com")
+            path = repo / "file.txt"
+            path.write_text("first\n", encoding="utf-8")
+            git(repo, "add", "file.txt")
+            git(repo, "commit", "-q", "-m", "first")
+            first = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True, timeout=5
+            ).stdout.strip()
+            path.write_text("second\n", encoding="utf-8")
+            git(repo, "add", "file.txt")
+            git(repo, "commit", "-q", "-m", "second")
+            second = subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True, timeout=5
+            ).stdout.strip()
+            git(repo, "replace", first, second)
+
+            with self.assertRaisesRegex(RuntimeError, "replacement references"):
+                list(scanner.history_records(repo))
+
+    def test_history_refuses_grafts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            git(repo, "init", "-q", "-b", "main")
+            git(repo, "config", "user.name", "Example User")
+            git(repo, "config", "user.email", "example@example.com")
+            (repo / "file.txt").write_text("safe\n", encoding="utf-8")
+            git(repo, "add", "file.txt")
+            git(repo, "commit", "-q", "-m", "safe")
+            graft = repo / ".git" / "info" / "grafts"
+            graft.parent.mkdir(parents=True, exist_ok=True)
+            graft.write_text("fixture\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(RuntimeError, "grafts"):
+                list(scanner.history_records(repo))
 
     def test_oversized_history_object_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

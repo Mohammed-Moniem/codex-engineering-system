@@ -12,9 +12,9 @@ Classify the request before adding process. Honor an explicitly invoked skill.
 1. Identify the requested outcome, current evidence, uncertainty, reversibility, risk, and likely session count.
 2. Route to one primary workflow:
    - Small and clear: `quickplan`, or a directly bounded `build` when no planning artifact adds value.
-   - Bounded and non-trivial: Codex's native `plan` skill. Do not emulate or shadow it.
+   - Bounded and non-trivial: native Plan mode when the host exposes it; otherwise `standard-plan`.
    - Large, foggy, cross-system, or multi-session: `wayfinder`.
-   - One-session fuzzy decision: `grill`, then native `plan`.
+   - One-session fuzzy decision: `grill`, then native Plan mode or `standard-plan`.
    - Hard bug or performance regression: `debug`.
    - Raw incoming bug, feature, or PR: `triage`.
    - Review: `review-council`.
@@ -26,7 +26,7 @@ Read [routing.md](references/routing.md) when signals conflict or multiple skill
 
 ## Boundaries
 
-- Treat explicit `@quickplan` / `$quickplan`, `@plan` / `$plan`, and `@wayfinder` / `$wayfinder` as overrides.
+- Treat explicit `@quickplan` / `$quickplan`, `@standard-plan` / `$standard-plan`, and `@wayfinder` / `$wayfinder` as overrides. Treat `@plan` / `$plan` as a standard-tier request only when the current host surfaces that native selector.
 - Never let a planning artifact expand the user's authority.
 - Escalate depth only when new evidence shows the current tier cannot resolve a blocking uncertainty.
 - Keep the next artifact single-source: map, spec, ticket, or implementation evidence—not duplicated prose.

@@ -3,9 +3,9 @@
 | Signal | Primary route | Typical composition |
 | --- | --- | --- |
 | Local, reversible, clear change | quickplan | quickplan → build |
-| Multi-file ordinary feature with known behavior | native Plan | plan → build → review-council |
+| Multi-file ordinary feature with known behavior | native Plan mode or `standard-plan` | standard plan → build → review-council |
 | Broad unknowns, dependencies, or several sessions | wayfinder | wayfinder → spec → tickets → build |
-| Bounded human choice blocks design | grill | grill → native Plan |
+| Bounded human choice blocks design | grill | grill → native Plan mode or `standard-plan` |
 | Evidence can settle the question | research | research → current planning tier |
 | A small artifact can test feasibility | prototype | prototype → current decision |
 | Knowledge exists only outside available sources | questionnaire | questionnaire → grill/wayfinder |
@@ -23,4 +23,4 @@
 
 Do not route by estimated line count alone. Use decision uncertainty, blast radius, reversibility, evidence quality, and expected session count.
 
-High-risk work is not automatically Wayfinder. A well-specified security fix can use native Plan or a bounded build; a harmless but undefined product domain may require Wayfinder.
+High-risk work is not automatically Wayfinder. A well-specified security fix can use native Plan mode, `standard-plan`, or a bounded build; a harmless but undefined product domain may require Wayfinder.

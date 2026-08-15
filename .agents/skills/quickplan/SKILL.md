@@ -22,4 +22,4 @@ Return:
 - **Verification**
 - **Ready to build**: yes/no and the blocker when no
 
-Stop after the plan unless the user also requested implementation. If the task reveals an unresolved design choice, route to native Plan or `grill`; use `wayfinder` only when uncertainty is genuinely broad or persistent.
+Stop after the plan unless the user also requested implementation. If the task reveals an unresolved design choice, route to native Plan mode, `standard-plan`, or `grill`; use `wayfinder` only when uncertainty is genuinely broad or persistent.

@@ -37,7 +37,7 @@
 
 ## Exit gate
 
-- [ ] No blocking frontier decisions.
+- [ ] No destination-blocking decision is `OPEN`, `CLAIMED`, `BLOCKED`, or `REOPENED`.
 - [ ] No relevant unformulated fog.
 - [ ] High-impact assumptions settled or accepted as risk.
 - [ ] Dependents of changed decisions inspected.

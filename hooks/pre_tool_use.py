@@ -16,9 +16,11 @@ DENY_REASON = "DG001: destructive Git command blocked by repository hook."
 DYNAMIC_REASON = "DG002: dynamic Git command could not be classified safely."
 OPERATORS = {";", "&&", "||", "|", "&", "(", ")"}
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=.*$", re.DOTALL)
+LEADING_REDIRECTION = re.compile(r"^(?:(?:[0-9]+|\{[A-Za-z_][A-Za-z0-9_]*\}))?(?:<>|>>?|<<<?|>&|<&|>\|)")
 SHELLS = {"sh", "bash", "zsh", "dash"}
 STATEFUL_SHELL_BUILTINS = {"alias", "declare", "export", "set", "shopt", "source", "typeset"}
 DYNAMIC_LAUNCHERS = {"parallel", "xargs"}
+CODE_LOADING_BUILTINS = {"source", "trap"}
 KNOWN_GIT_SUBCOMMANDS = {
     "add", "am", "apply", "archive", "bisect", "blame", "branch", "bundle",
     "checkout", "cherry", "cherry-pick", "clean", "clone", "commit", "config",
@@ -272,6 +274,11 @@ def command_is_destructive(command: str, depth: int = 0) -> bool:
         if index >= len(part):
             continue
         if any(marker in part[index] for marker in ("$", "`")):
+            raise RuntimeError(DYNAMIC_REASON)
+        entry = part[index]
+        if LEADING_REDIRECTION.match(entry):
+            raise RuntimeError(DYNAMIC_REASON)
+        if entry == "." or executable_name(entry) in CODE_LOADING_BUILTINS:
             raise RuntimeError(DYNAMIC_REASON)
         for position, token in enumerate(part):
             base = executable_name(token)

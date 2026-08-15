@@ -51,7 +51,9 @@ Keep MAP.md as a low-resolution operational view. Decision and evidence detail h
 | Resolution | Chosen answer and rationale |
 | Invalidation rule | Evidence or premise that would reopen it |
 
-The frontier is the set of `OPEN` decisions with all prerequisites settled and no current claim.
+The frontier is the set of actionable `OPEN` or `REOPENED` decisions with all prerequisites settled and no current claim. `CLAIMED` is active work, not frontier; `BLOCKED` remains visible in the graph and exit gate.
+
+The effort cannot exit while any destination-blocking decision is `OPEN`, `CLAIMED`, `BLOCKED`, or `REOPENED`, even if that decision is not currently actionable.
 
 ## Assumption ledger
 

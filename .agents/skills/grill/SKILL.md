@@ -18,4 +18,4 @@ Build a small decision tree, then expose only the decision-ready frontier.
    - active planning choice → Wayfinder decision or plan artifact.
 6. Update dependent questions after every answer. Do not re-ask a settled decision unless its premise changed.
 
-Finish when the bounded decision tree is resolved. Route ordinary work to native Plan; route expanding or multi-session fog to Wayfinder.
+Finish when the bounded decision tree is resolved. Route ordinary work to native Plan mode or `standard-plan`; route expanding or multi-session fog to Wayfinder.

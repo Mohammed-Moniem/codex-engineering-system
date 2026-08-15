@@ -26,4 +26,4 @@ All checks must pass. Pull requests should explain the user-visible behavior, ri
 - Keep one coherent change per pull request.
 - Do not include transcripts, generated runtime state, private project data, or real credentials.
 - Do not weaken hook parsing or publication gates without dedicated adversarial tests.
-- Do not add a `plan` skill; improve router/native Plan integration instead.
+- Do not add a `plan` skill; improve native Plan-mode integration or the `standard-plan` fallback instead.

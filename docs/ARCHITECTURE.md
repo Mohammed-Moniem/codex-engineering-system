@@ -14,7 +14,7 @@ The router selects a workflow but does not pretend to execute a specialist from 
 
 ```mermaid
 flowchart TD
-    Router --> Planning["Quickplan / native Plan / Wayfinder"]
+    Router --> Planning["Quickplan / Plan mode or Standard Plan / Wayfinder"]
     Planning --> Discovery["Grill / Domain / Research / Prototype"]
     Discovery --> Delivery["Spec / Tickets / Build / TDD"]
     Delivery --> Quality["Debug / Review Council / Architecture"]

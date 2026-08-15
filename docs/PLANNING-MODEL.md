@@ -5,21 +5,23 @@
 | Tier | Entry | Boundary | Exit |
 | --- | --- | --- | --- |
 | Quickplan | Small, bounded, clear | Inspect only enough context to avoid obvious mistakes | Compact executable plan and verification |
-| Native Plan | Bounded, non-trivial | Explore requirements, repository, dependencies, risks, and test strategy | Ordered implementation plan |
+| Standard plan | Bounded, non-trivial | Explore requirements, repository, dependencies, risks, and test strategy | Ordered implementation plan |
 | Wayfinder | Large, foggy, multi-session | Resolve decision dependencies and evidence before delivery design | Clear route ready for specification |
 
 Explicit invocation wins. Otherwise `engineer` chooses the shallowest tier that can safely remove the relevant uncertainty.
 
-## Native Plan integration
+## Native Plan integration and portable fallback
 
-Codex ships a system `plan` skill. This repository does not define another skill named `plan`, because duplicate names appear independently in selectors and create avoidable ambiguity. `engineer` routes the standard tier to the native capability and documents the same user-facing invocation: `@plan` in ChatGPT desktop and `$plan` in Codex CLI or IDE.
+Current Codex hosts may expose Plan as a collaboration mode rather than a skill named `plan`. Select native Plan mode through the host control when it is available. If the host explicitly lists `@plan` or `$plan`, that selector is also valid there.
+
+This repository does not define a skill named `plan`: a future or host-provided selector could collide with it. The portable explicit fallback is `@standard-plan` in ChatGPT desktop and `$standard-plan` in Codex CLI or IDE. Both paths implement the same middle-tier contract.
 
 ## Routing principles
 
 - Route a simple implementation to quickplan or directly to one bounded build item.
-- Route an ordinary feature or refactor to native Plan.
+- Route an ordinary feature or refactor to native Plan mode or `standard-plan`.
 - Route a large or multi-session decision space to Wayfinder.
-- Route one-session fuzzy decisions to grill, then native Plan.
+- Route one-session fuzzy decisions to grill, then native Plan mode or `standard-plan`.
 - Route bugs with a reproducible signal to debug.
 - Route raw incoming work to triage.
 - Route review requests to review-council.
