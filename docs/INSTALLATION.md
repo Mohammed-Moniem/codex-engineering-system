@@ -14,7 +14,7 @@ Clone without checking out the mutable default branch, then switch directly to t
 ```bash
 git clone --no-checkout https://github.com/Mohammed-Moniem/codex-engineering-system.git
 cd codex-engineering-system
-git switch --detach 46e76b5fa305c580716a2c677621fda0d5ec6345
+git switch --detach 082ed4c3134d315fe76cdafff1fe25f3f9daca96
 codex
 ```
 
@@ -26,7 +26,7 @@ Ask the built-in `$skill-installer` to install a GitHub repository subpath pinne
 
 ```text
 $skill-installer Install the wayfinder skill from
-https://github.com/Mohammed-Moniem/codex-engineering-system/tree/46e76b5fa305c580716a2c677621fda0d5ec6345/skills/wayfinder
+https://github.com/Mohammed-Moniem/codex-engineering-system/tree/082ed4c3134d315fe76cdafff1fe25f3f9daca96/skills/wayfinder
 ```
 
 Individual skill directories are self-contained; references, assets, and scripts do not reach outside their skill.
@@ -36,9 +36,26 @@ Individual skill directories are self-contained; references, assets, and scripts
 Add this repository as a Git marketplace, then install the plugin:
 
 ```bash
-codex plugin marketplace add Mohammed-Moniem/codex-engineering-system --ref 46e76b5fa305c580716a2c677621fda0d5ec6345
+codex plugin marketplace add Mohammed-Moniem/codex-engineering-system --ref 082ed4c3134d315fe76cdafff1fe25f3f9daca96
 codex plugin add codex-engineering-system@codex-engineering-system
 ```
+
+### Upgrade from `0.1.0`
+
+The `0.1.0` marketplace source was pinned to an immutable commit, so replace both the installed plugin and that pinned marketplace entry:
+
+```bash
+codex plugin remove codex-engineering-system@codex-engineering-system
+codex plugin marketplace remove codex-engineering-system
+codex plugin marketplace add Mohammed-Moniem/codex-engineering-system --ref 082ed4c3134d315fe76cdafff1fe25f3f9daca96
+codex plugin add codex-engineering-system@codex-engineering-system
+```
+
+After an install or upgrade, fully restart ChatGPT desktop or Codex Desktop and begin a new task. For the CLI or IDE, start a new session. An already-running task does not reload its skill catalog.
+
+### If a skill is registered but absent from autocomplete
+
+Use `/skills` in a fresh task to inspect the active catalog. Codex has a bounded skill-description context budget; a host with many enabled plugins and user skills can omit later entries even when their plugin package is valid. Disable unused plugins or install the needed skill individually if the catalog reports a budget overflow. This bundle keeps descriptions concise, but it cannot enlarge the host budget or force an omitted entry into autocomplete.
 
 For a local clone under review, substitute the clone's path in the first command. There are three supported paths:
 

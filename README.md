@@ -44,7 +44,7 @@ Clone the reviewed source commit, open it in ChatGPT desktop or launch Codex fro
 ```bash
 git clone --no-checkout https://github.com/Mohammed-Moniem/codex-engineering-system.git
 cd codex-engineering-system
-git switch --detach 46e76b5fa305c580716a2c677621fda0d5ec6345
+git switch --detach 082ed4c3134d315fe76cdafff1fe25f3f9daca96
 codex
 ```
 
@@ -56,7 +56,7 @@ Use the built-in installer and name the GitHub repository path you want. For exa
 
 ```text
 $skill-installer Install the quickplan skill from
-https://github.com/Mohammed-Moniem/codex-engineering-system/tree/46e76b5fa305c580716a2c677621fda0d5ec6345/skills/quickplan
+https://github.com/Mohammed-Moniem/codex-engineering-system/tree/082ed4c3134d315fe76cdafff1fe25f3f9daca96/skills/quickplan
 ```
 
 Restart Codex only if the newly installed skill does not appear. The [official skill documentation](https://developers.openai.com/codex/build-skills) describes repository and user skill locations, explicit invocation, and installation from other repositories.
@@ -66,9 +66,11 @@ Restart Codex only if the newly installed skill does not appear. The [official s
 This repository is a Git marketplace containing a skills-only plugin:
 
 ```bash
-codex plugin marketplace add Mohammed-Moniem/codex-engineering-system --ref 46e76b5fa305c580716a2c677621fda0d5ec6345
+codex plugin marketplace add Mohammed-Moniem/codex-engineering-system --ref 082ed4c3134d315fe76cdafff1fe25f3f9daca96
 codex plugin add codex-engineering-system@codex-engineering-system
 ```
+
+After an install or upgrade, fully restart ChatGPT desktop or Codex Desktop and begin a new task. Start a new CLI/IDE session so the host reloads the plugin catalog. See [installation details](docs/INSTALLATION.md) for the `0.1.0` upgrade commands and skill-catalog troubleshooting.
 
 Public one-click discovery still requires submission to the universal plugin directory; a GitHub repository alone is not a directory listing. See [installation details](docs/INSTALLATION.md) and the [official plugin documentation](https://developers.openai.com/plugins/build/plugins).
 
