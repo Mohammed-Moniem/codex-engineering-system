@@ -2,8 +2,8 @@
 
 ## Package shape
 
-- `.agents/skills/` is the canonical skill source and the repository-scoped discovery location.
-- `.codex-plugin/plugin.json` packages the same tree through an in-repository `skills` symlink, preserving `.agents/skills` as the only source of truth.
+- `skills/` is the canonical packaged skill source required by Codex plugin discovery.
+- `.agents/skills` links to that same tree for repository-scoped discovery without maintaining a duplicate copy.
 - `hooks/` contains optional deterministic lifecycle hooks discovered by Codex after user review and trust.
 - `scripts/` contains repository validation and secret scanning, not workflow reasoning.
 - `evals/` contains routing and skill behavior fixtures.

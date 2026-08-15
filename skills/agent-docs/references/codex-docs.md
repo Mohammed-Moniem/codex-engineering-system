@@ -2,7 +2,7 @@
 
 ## Skills
 
-- Store repository skills at `.agents/skills/<name>/SKILL.md`.
+- Store plugin skills at `skills/<name>/SKILL.md`; expose that tree through `.agents/skills` when the repository should also provide repo-scoped discovery.
 - Use lowercase kebab-case names under 64 characters.
 - Keep frontmatter to `name` and `description`.
 - Put interface metadata and invocation policy in `agents/openai.yaml`.

@@ -8,7 +8,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parent.parent
-SCRIPT = ROOT / ".agents" / "skills" / "wayfinder" / "scripts" / "init_wayfinder.py"
+SCRIPT = ROOT / "skills" / "wayfinder" / "scripts" / "init_wayfinder.py"
 
 
 class WayfinderInitTests(unittest.TestCase):

@@ -34,7 +34,7 @@ jobs:
           python-version: "3.11"
 
       - name: Compile Python
-        run: python3 -m compileall -q hooks scripts tests .agents/skills/wayfinder/scripts
+        run: python3 -m compileall -q hooks scripts tests skills/wayfinder/scripts
 
       - name: Validate repository contracts
         run: python3 scripts/validate_repo.py

@@ -4,6 +4,13 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-15
+
+### Fixed
+
+- Package the canonical skill tree as a real top-level `skills/` directory so installed plugins expose every skill, including Wayfinder, to Codex discovery and autocomplete.
+- Validate that the manifest targets the complete packaged skill set rather than relying on a symlink that marketplace installation can omit.
+
 ## [0.1.0] - 2026-08-15
 
 ### Added

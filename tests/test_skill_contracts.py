@@ -37,7 +37,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     def test_every_skill_has_smoke_prompts(self) -> None:
-        skills = {path.name for path in (ROOT / ".agents" / "skills").iterdir() if path.is_dir()}
+        skills = {path.name for path in (ROOT / "skills").iterdir() if path.is_dir()}
         fixtures = json.loads((ROOT / "evals" / "skill-smoke.json").read_text(encoding="utf-8"))
         self.assertEqual(skills, {item["skill"] for item in fixtures})
         for item in fixtures:
@@ -80,18 +80,34 @@ class SkillContractTests(unittest.TestCase):
         validator.validate_distribution_inventory(check)
         self.assertEqual([], check.errors)
 
+    def test_plugin_manifest_registers_the_packaged_skill_tree(self) -> None:
+        manifest = json.loads((ROOT / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
+        registered_skills = ROOT / manifest["skills"]
+        expected = {path.name for path in (ROOT / "skills").iterdir() if path.is_dir()}
+        registered = {
+            path.name
+            for path in registered_skills.iterdir()
+            if path.is_dir() and (path / "SKILL.md").is_file()
+        }
+        self.assertFalse(registered_skills.is_symlink(), "marketplace packaging may omit skill symlinks")
+        self.assertEqual(expected, registered)
+        self.assertTrue((registered_skills / "wayfinder" / "SKILL.md").is_file())
+        repo_discovery = ROOT / ".agents" / "skills"
+        self.assertTrue(repo_discovery.is_symlink())
+        self.assertEqual(registered_skills.resolve(), repo_discovery.resolve())
+
     def test_debug_preserves_diagnosis_only_authority(self) -> None:
-        text = (ROOT / ".agents" / "skills" / "debug" / "SKILL.md").read_text(encoding="utf-8")
+        text = (ROOT / "skills" / "debug" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("For diagnosis-only requests", text)
         self.assertIn("do not implement a fix", text)
 
     def test_build_requires_explicit_commit_authority(self) -> None:
-        text = (ROOT / ".agents" / "skills" / "build" / "SKILL.md").read_text(encoding="utf-8")
+        text = (ROOT / "skills" / "build" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("only when the user explicitly requested a commit", text)
         self.assertIn("never supply commit authority", text)
 
     def test_standard_plan_is_the_portable_middle_tier(self) -> None:
-        skills = ROOT / ".agents" / "skills"
+        skills = ROOT / "skills"
         self.assertFalse((skills / "plan").exists())
         self.assertTrue((skills / "standard-plan" / "SKILL.md").is_file())
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -99,11 +115,11 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("not a portable skill selector", readme)
 
     def test_wayfinder_exit_covers_nonterminal_blockers(self) -> None:
-        skill = (ROOT / ".agents" / "skills" / "wayfinder" / "SKILL.md").read_text(encoding="utf-8")
-        schema = (ROOT / ".agents" / "skills" / "wayfinder" / "references" / "map-schema.md").read_text(
+        skill = (ROOT / "skills" / "wayfinder" / "SKILL.md").read_text(encoding="utf-8")
+        schema = (ROOT / "skills" / "wayfinder" / "references" / "map-schema.md").read_text(
             encoding="utf-8"
         )
-        template = (ROOT / ".agents" / "skills" / "wayfinder" / "assets" / "MAP.md").read_text(
+        template = (ROOT / "skills" / "wayfinder" / "assets" / "MAP.md").read_text(
             encoding="utf-8"
         )
         for status in ("OPEN", "CLAIMED", "BLOCKED", "REOPENED"):
@@ -113,8 +129,8 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("cannot exit", schema)
 
     def test_persistent_evidence_is_explicitly_untrusted(self) -> None:
-        wayfinder = (ROOT / ".agents" / "skills" / "wayfinder" / "SKILL.md").read_text(encoding="utf-8")
-        research = (ROOT / ".agents" / "skills" / "research" / "SKILL.md").read_text(encoding="utf-8")
+        wayfinder = (ROOT / "skills" / "wayfinder" / "SKILL.md").read_text(encoding="utf-8")
+        research = (ROOT / "skills" / "research" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("untrusted data", wayfinder)
         self.assertIn("untrusted data", research)
 

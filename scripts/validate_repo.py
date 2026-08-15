@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import ast
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import sys
@@ -13,7 +13,7 @@ from urllib.parse import unquote
 
 
 ROOT = Path(__file__).resolve().parent.parent
-SKILLS = ROOT / ".agents" / "skills"
+SKILLS = ROOT / "skills"
 NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 LINK = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
 ACTION_LINE = re.compile(
@@ -210,11 +210,41 @@ def validate_manifest(check: Validation) -> None:
             check.error(path, f"missing required field {key}")
     if manifest.get("name") != "codex-engineering-system":
         check.error(path, "unexpected plugin name")
-    if manifest.get("skills") != "./skills/":
-        check.error(path, "plugin manifest must use the conventional skills path")
-    bridge = ROOT / "skills"
+    skills_value = manifest.get("skills")
+    if not isinstance(skills_value, str) or not skills_value.startswith("./") or "\\" in skills_value:
+        check.error(path, "plugin skills must be a forward-slash relative path beginning with ./")
+    else:
+        relative = PurePosixPath(skills_value[2:])
+        if not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
+            check.error(path, "plugin skills path must stay inside the plugin package")
+        else:
+            registered_skills = ROOT.joinpath(*relative.parts)
+            resolved = registered_skills.resolve(strict=False)
+            if not resolved.is_relative_to(ROOT.resolve()):
+                check.error(path, "plugin skills path escapes the plugin package")
+            elif registered_skills.is_symlink():
+                check.error(path, "plugin skills path must be a packaged directory, not a symlink")
+            elif resolved != SKILLS.resolve(strict=False):
+                check.error(path, "plugin skills path must register canonical skills directly")
+            elif not registered_skills.is_dir():
+                check.error(registered_skills, "registered plugin skills directory is missing")
+            else:
+                expected = {folder.name for folder in SKILLS.iterdir() if folder.is_dir()}
+                registered = {
+                    folder.name
+                    for folder in registered_skills.iterdir()
+                    if folder.is_dir() and (folder / "SKILL.md").is_file()
+                }
+                if registered != expected:
+                    missing = ", ".join(sorted(expected - registered)) or "none"
+                    extra = ", ".join(sorted(registered - expected)) or "none"
+                    check.error(path, f"registered skill set mismatch (missing: {missing}; extra: {extra})")
+                if not (registered_skills / "wayfinder" / "SKILL.md").is_file():
+                    check.error(path, "registered plugin skills must contain wayfinder/SKILL.md")
+
+    bridge = ROOT / ".agents" / "skills"
     if not bridge.is_symlink() or bridge.resolve(strict=False) != SKILLS.resolve(strict=False):
-        check.error(bridge, "skills must be an in-repository symlink to canonical .agents/skills")
+        check.error(bridge, "repository-scoped discovery link must target canonical skills")
     if "hooks" in manifest:
         check.error(path, "omit the manifest hooks key; use default hooks/hooks.json discovery")
 
@@ -325,14 +355,17 @@ def validate_distribution_inventory(check: Validation) -> None:
             if "__pycache__" in path.parts or path.suffix in {".pyc", ".pyo"}:
                 continue
             if path.is_symlink():
-                check.error(path, "nested package symlinks are forbidden")
+                repo_discovery = ROOT / ".agents" / "skills"
+                if path == repo_discovery and path.resolve(strict=False) == SKILLS.resolve(strict=False):
+                    continue
+                check.error(path, "nested package symlinks are forbidden except the contained repo discovery link")
                 continue
             if path.is_file():
                 relative = path.relative_to(ROOT).as_posix()
                 if relative not in tracked:
                     check.error(path, "package file is not tracked or staged")
-    if "skills" not in tracked:
-        check.error(ROOT / "skills", "plugin skills bridge is not tracked or staged")
+    if not any(path.startswith("skills/") for path in tracked):
+        check.error(ROOT / "skills", "packaged plugin skill tree is not tracked or staged")
 
 
 def validate_workflows(check: Validation) -> None:

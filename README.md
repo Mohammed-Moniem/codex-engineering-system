@@ -39,7 +39,7 @@ The system defaults to local Markdown artifacts and existing repository tools. I
 
 ### Try the repository-scoped skills
 
-Clone the reviewed source commit, open it in ChatGPT desktop or launch Codex from its root, and the checked-in `.agents/skills` tree is discovered automatically.
+Clone the reviewed source commit, open it in ChatGPT desktop or launch Codex from its root, and the `.agents/skills` compatibility link exposes the canonical packaged `skills/` tree for repository-scoped discovery.
 
 ```bash
 git clone --no-checkout https://github.com/Mohammed-Moniem/codex-engineering-system.git
@@ -56,7 +56,7 @@ Use the built-in installer and name the GitHub repository path you want. For exa
 
 ```text
 $skill-installer Install the quickplan skill from
-https://github.com/Mohammed-Moniem/codex-engineering-system/tree/46e76b5fa305c580716a2c677621fda0d5ec6345/.agents/skills/quickplan
+https://github.com/Mohammed-Moniem/codex-engineering-system/tree/46e76b5fa305c580716a2c677621fda0d5ec6345/skills/quickplan
 ```
 
 Restart Codex only if the newly installed skill does not appear. The [official skill documentation](https://developers.openai.com/codex/build-skills) describes repository and user skill locations, explicit invocation, and installation from other repositories.
@@ -109,7 +109,7 @@ Wayfinder starts with the destination and keeps a persistent shared map. It sepa
 
 Independent AFK research, repository exploration, benchmarks, and experiments may run in parallel. Human-in-the-loop decisions remain with the human; the main context generally resolves one conceptual HITL branch at a time. Wayfinder exits only when the route can be executed without inventing another major decision, then hands substantial work to `spec`, `tickets`, and `build`.
 
-See [the planning model](docs/PLANNING-MODEL.md) and the [Wayfinder map schema](.agents/skills/wayfinder/references/map-schema.md).
+See [the planning model](docs/PLANNING-MODEL.md) and the [Wayfinder map schema](skills/wayfinder/references/map-schema.md).
 
 ## Hooks
 
@@ -134,7 +134,7 @@ The checks cover skill metadata, `agents/openai.yaml`, duplicate names, local li
 
 ## Codex-first, with credit
 
-This project uses current Codex conventions: `.agents/skills`, `agents/openai.yaml`, `@skill` in ChatGPT desktop, `$skill` or `/skills` in Codex, skills-only plugin packaging, and Codex lifecycle hooks.
+This project uses current Codex conventions: packaged `skills/`, repository-scoped `.agents/skills`, `agents/openai.yaml`, `@skill` in ChatGPT desktop, `$skill` or `/skills` in Codex, and Codex lifecycle hooks.
 
 It is inspired by the composable engineering skills and Wayfinder work in [mattpocock/skills](https://github.com/mattpocock/skills). That repository supports Codex and other agents; this project is an original Codex-first implementation, not a claim that the upstream work is Claude-only. See [NOTICE.md](NOTICE.md).
 

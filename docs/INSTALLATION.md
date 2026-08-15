@@ -26,7 +26,7 @@ Ask the built-in `$skill-installer` to install a GitHub repository subpath pinne
 
 ```text
 $skill-installer Install the wayfinder skill from
-https://github.com/Mohammed-Moniem/codex-engineering-system/tree/46e76b5fa305c580716a2c677621fda0d5ec6345/.agents/skills/wayfinder
+https://github.com/Mohammed-Moniem/codex-engineering-system/tree/46e76b5fa305c580716a2c677621fda0d5ec6345/skills/wayfinder
 ```
 
 Individual skill directories are self-contained; references, assets, and scripts do not reach outside their skill.
@@ -48,7 +48,7 @@ For a local clone under review, substitute the clone's path in the first command
 
 The marketplace and plugin manifests are ready for local validation and future universal-directory submission. This repository does not claim that a public GitHub URL by itself is a universal plugin-directory listing. Follow the current [OpenAI plugin packaging documentation](https://developers.openai.com/plugins/build/plugins) for local marketplace testing and submission.
 
-Codex supports symlinked skill folders. Advanced users may link selected directories from `.agents/skills` into their user skill directory, but should review the exact source before doing so.
+Codex supports symlinked skill folders. Advanced users may link selected directories from `skills/` into their user skill directory, but should review the exact source before doing so.
 
 ## Hooks
 
