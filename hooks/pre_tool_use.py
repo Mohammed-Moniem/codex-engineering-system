@@ -17,6 +17,8 @@ DYNAMIC_REASON = "DG002: dynamic Git command could not be classified safely."
 OPERATORS = {";", "&&", "||", "|", "&", "(", ")"}
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=.*$", re.DOTALL)
 SHELLS = {"sh", "bash", "zsh", "dash"}
+STATEFUL_SHELL_BUILTINS = {"alias", "declare", "export", "set", "shopt", "source", "typeset"}
+DYNAMIC_LAUNCHERS = {"parallel", "xargs"}
 KNOWN_GIT_SUBCOMMANDS = {
     "add", "am", "apply", "archive", "bisect", "blame", "branch", "bundle",
     "checkout", "cherry", "cherry-pick", "clean", "clone", "commit", "config",
@@ -168,6 +170,10 @@ def destructive(args: list[str]) -> bool:
         raise RuntimeError(DYNAMIC_REASON)
     if subcommand == "reset":
         return any(has_long_prefix(rest, prefix) for prefix in ("--h", "--mer", "--k", "--rec"))
+    if subcommand == "am":
+        return rest != ["--abort"]
+    if subcommand == "apply":
+        return has_long_prefix(rest, "--unsafe")
     if subcommand == "clean":
         return True
     if subcommand == "checkout":
@@ -183,11 +189,11 @@ def destructive(args: list[str]) -> bool:
     if subcommand == "config":
         return not bool(rest and rest[0] in {"--get", "--get-all", "--get-regexp", "--list", "-l", "get", "list"})
     if subcommand == "stash":
-        return bool(rest and rest[0] in {"drop", "clear"})
+        return any(token.startswith(("cl", "dr")) for token in rest)
     if subcommand == "push":
         return True
     if subcommand == "reflog":
-        return bool(rest and rest[0] in {"expire", "delete"})
+        return bool(rest and rest[0] != "show")
     if subcommand == "gc":
         return True
     if subcommand == "maintenance":
@@ -215,10 +221,30 @@ def destructive(args: list[str]) -> bool:
     if subcommand == "submodule":
         return True
     if subcommand == "notes":
-        return bool(rest and rest[0] in {"remove", "prune"})
+        return True
     if subcommand == "replace":
-        return has_short_flag(rest, "d") or has_short_flag(rest, "f") or has_long_prefix(rest, "--del")
-    return subcommand in {"difftool", "filter-branch", "filter-repo", "mergetool", "repack"}
+        return True
+    if subcommand == "remote":
+        local_show = len(rest) >= 2 and rest[0] == "show" and rest[1] in {"-n", "--no-query"}
+        read_only = not rest or rest in (["-v"], ["--verbose"]) or rest[0] == "get-url" or local_show
+        return not read_only
+    if subcommand == "init":
+        return any(token.startswith("--s") for token in rest)
+    if subcommand == "mv":
+        return has_short_flag(rest, "f") or any(token.startswith("--f") for token in rest)
+    if subcommand == "sparse-checkout":
+        return True
+    if subcommand in {"cherry-pick", "merge", "revert"}:
+        if rest == ["--abort"]:
+            return False
+        return has_short_flag(rest, "s") or has_long_prefix(rest, "--strat")
+    if subcommand == "rebase" and rest == ["--abort"]:
+        return False
+    return subcommand in {
+        "archive", "bisect", "clone", "difftool", "fetch", "filter-branch",
+        "filter-repo", "grep", "mergetool", "pull", "rebase", "repack",
+        "request-pull",
+    }
 
 
 def command_is_destructive(command: str, depth: int = 0) -> bool:
@@ -229,7 +255,19 @@ def command_is_destructive(command: str, depth: int = 0) -> bool:
         raise RuntimeError(DYNAMIC_REASON)
     if any(re.search(r"\{[^{}]*(?:,|\.\.)[^{}]*\}", token) for token in tokenized):
         raise RuntimeError(DYNAMIC_REASON)
-    for part in segments(tokenized):
+    command_segments = segments(tokenized)
+    if len(command_segments) > 1:
+        normalized_tokens = " ".join(tokenized).casefold()
+        contains_git = re.search(r"(?<![a-z0-9_-])git(?:\.exe)?(?![a-z0-9_-])", normalized_tokens)
+        contains_stateful_builtin = any(
+            executable_name(token) in STATEFUL_SHELL_BUILTINS
+            for part in command_segments
+            for token in part
+        )
+        deobfuscated_tokens = re.sub(r'''["'\\]''', "", normalized_tokens)
+        if contains_git or contains_stateful_builtin and "git" in deobfuscated_tokens:
+            raise RuntimeError(DYNAMIC_REASON)
+    for part in command_segments:
         index = skip_wrapper(part, 0)
         if index >= len(part):
             continue
@@ -243,15 +281,21 @@ def command_is_destructive(command: str, depth: int = 0) -> bool:
                 option.startswith("-S") or option.startswith("--s") for option in part[position + 1:]
             ):
                 raise RuntimeError(DYNAMIC_REASON)
+            if base in DYNAMIC_LAUNCHERS:
+                raise RuntimeError(DYNAMIC_REASON)
             if base in SHELLS:
+                classified = False
                 for option in range(position + 1, len(part)):
                     shell_flag = part[option]
                     if shell_flag.startswith("-") and not shell_flag.startswith("--") and "c" in shell_flag[1:]:
                         if option + 1 >= len(part):
                             raise RuntimeError(DYNAMIC_REASON)
+                        classified = True
                         if command_is_destructive(part[option + 1], depth + 1):
                             return True
                         break
+                if not classified:
+                    raise RuntimeError(DYNAMIC_REASON)
             if base == "git" and destructive(git_arguments(part, position)):
                 return True
             if base == "git" and any(ASSIGNMENT.fullmatch(item) for item in part[:position]):
