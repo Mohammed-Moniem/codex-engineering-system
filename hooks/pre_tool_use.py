@@ -19,7 +19,7 @@ ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=.*$", re.DOTALL)
 LEADING_REDIRECTION = re.compile(r"^(?:(?:[0-9]+|\{[A-Za-z_][A-Za-z0-9_]*\}))?(?:<>|>>?|<<<?|>&|<&|>\|)")
 SHELLS = {"sh", "bash", "zsh", "dash"}
 STATEFUL_SHELL_BUILTINS = {"alias", "declare", "export", "set", "shopt", "source", "typeset"}
-DYNAMIC_LAUNCHERS = {"parallel", "xargs"}
+DYNAMIC_LAUNCHERS = {"coproc", "parallel", "xargs"}
 CODE_LOADING_BUILTINS = {"source", "trap"}
 KNOWN_GIT_SUBCOMMANDS = {
     "add", "am", "apply", "archive", "bisect", "blame", "branch", "bundle",
