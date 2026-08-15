@@ -149,6 +149,44 @@ class SecretScannerTests(unittest.TestCase):
             self.assertTrue(history)
             self.assertNotIn(token, "\n".join(history))
 
+    def test_history_scans_every_path_for_shared_blobs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            git(repo, "init", "-q", "-b", "main")
+            git(repo, "config", "user.name", "Example User")
+            git(repo, "config", "user.email", "example@example.com")
+            token = "gh" + "p_" + "H7j8" * 9
+            safe = repo / "safe.txt"
+            sensitive = repo / f"{token}.txt"
+            safe.write_text("identical\n", encoding="utf-8")
+            sensitive.write_text("identical\n", encoding="utf-8")
+            git(repo, "add", "safe.txt", sensitive.name)
+            git(repo, "commit", "-q", "-m", "add shared fixture")
+            sensitive.unlink()
+            git(repo, "add", "-u")
+            git(repo, "commit", "-q", "-m", "remove sensitive alias")
+
+            reports = scanner.scan_records(scanner.history_records(repo), "history")
+            self.assertTrue(reports)
+            self.assertNotIn(token, "\n".join(reports))
+            self.assertTrue(any("path-github-token" in report for report in reports))
+
+    def test_history_scans_reference_names(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            git(repo, "init", "-q", "-b", "main")
+            git(repo, "config", "user.name", "Example User")
+            git(repo, "config", "user.email", "example@example.com")
+            (repo / "safe.txt").write_text("safe\n", encoding="utf-8")
+            git(repo, "add", "safe.txt")
+            git(repo, "commit", "-q", "-m", "safe commit")
+            token = "gh" + "p_" + "K3m4" * 9
+            git(repo, "tag", token)
+
+            reports = scanner.scan_records(scanner.history_records(repo), "history")
+            self.assertTrue(any("path-github-token" in report for report in reports))
+            self.assertNotIn(token, "\n".join(reports))
+
     def test_oversized_history_object_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)

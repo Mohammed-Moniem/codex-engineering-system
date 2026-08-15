@@ -65,6 +65,10 @@ class SkillContractTests(unittest.TestCase):
             1,
         )
         self.assertTrue(validator.workflow_policy_errors(flow_mapping))
+        tagged_permission = safe.replace("  validate:\n", "  validate:\n    !!str permissions: write-all\n", 1)
+        self.assertTrue(validator.workflow_policy_errors(tagged_permission))
+        tagged_directive = "%TAG !example! tag:example.com,2026:\n" + safe
+        self.assertTrue(validator.workflow_policy_errors(tagged_directive))
 
     def test_every_workflow_is_covered_by_policy_validation(self) -> None:
         source = (ROOT / "scripts" / "validate_repo.py").read_text(encoding="utf-8")

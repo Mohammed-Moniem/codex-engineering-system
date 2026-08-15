@@ -17,6 +17,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_FILE = 16_000_000
+MAX_HISTORY_COMMITS = 100_000
+MAX_HISTORY_PATHS = 2_000_000
 PLACEHOLDERS = ("YOUR_", "EXAMPLE_", "DUMMY_", "REDACTED", "CHANGEME")
 
 
@@ -192,6 +194,46 @@ def history_records(root: Path = ROOT) -> Iterable[tuple[str, bytes]]:
     shallow = run_git(["rev-parse", "--is-shallow-repository"], root=root)
     if shallow.returncode == 0 and shallow.stdout.strip() == "true":
         raise RuntimeError("history scan refuses a shallow repository")
+    refs = run_git(["for-each-ref", "--format=%(refname)"], root=root)
+    if refs.returncode != 0:
+        raise RuntimeError("unable to enumerate Git references")
+    for refname in (line for line in refs.stdout.splitlines() if line):
+        yield f"ref:{refname}", b""
+    commits = run_git(["rev-list", "--all"], root=root)
+    if commits.returncode != 0:
+        raise RuntimeError("unable to enumerate reachable commits")
+    commit_ids = [line for line in commits.stdout.splitlines() if line]
+    if len(commit_ids) > MAX_HISTORY_COMMITS:
+        raise RuntimeError(f"history exceeds the {MAX_HISTORY_COMMITS} commit scan limit")
+    seen_paths: set[tuple[str, str]] = set()
+    for commit_id in commit_ids:
+        tree = subprocess.run(
+            ["git", "ls-tree", "-r", "-z", "--full-tree", commit_id],
+            cwd=root,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+        if tree.returncode != 0:
+            raise RuntimeError("unable to enumerate a reachable Git tree")
+        for record in (item for item in tree.stdout.split(b"\0") if item):
+            metadata, separator, raw_path = record.partition(b"\t")
+            fields = metadata.split()
+            if not separator or len(fields) != 3:
+                raise RuntimeError("unable to parse a reachable Git tree entry")
+            _, _, raw_object_id = fields
+            try:
+                object_id = raw_object_id.decode("ascii")
+                label = raw_path.decode("utf-8", "surrogateescape")
+            except UnicodeDecodeError as exc:
+                raise RuntimeError("unable to decode a reachable Git tree entry") from exc
+            identity = (object_id, label)
+            if identity in seen_paths:
+                continue
+            seen_paths.add(identity)
+            if len(seen_paths) > MAX_HISTORY_PATHS:
+                raise RuntimeError(f"history exceeds the {MAX_HISTORY_PATHS} path scan limit")
+            yield f"{label}@{object_id[:12]}", b""
     objects = run_git(["-c", "core.quotePath=true", "rev-list", "--objects", "--all"], root=root)
     if objects.returncode != 0:
         raise RuntimeError("unable to enumerate Git history")

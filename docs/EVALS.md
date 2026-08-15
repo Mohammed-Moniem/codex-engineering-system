@@ -21,7 +21,7 @@ The gate is dependency-free apart from Git and Python 3.11 or newer.
 - SessionStart path and output safety.
 - PreToolUse destructive-Git parsing, wrappers, malformed payloads, and benign commands.
 - GitHub workflow permissions, immutable action pins, full checkout history, and forbidden triggers.
-- Secret patterns in the worktree, staged index blobs, path labels, reachable Git blobs, commit messages, and annotated tags; unsupported oversized objects fail the gate explicitly.
+- Secret patterns in the worktree, staged index blobs, Git reference names, every pathname in every reachable commit tree, deduplicated Git blob bodies, commit messages, and annotated tags; unsupported oversized objects fail the gate explicitly.
 
 ## Router evals
 

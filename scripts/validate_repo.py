@@ -273,6 +273,8 @@ def workflow_policy_errors(text: str) -> list[str]:
         errors.append("quoted YAML mapping keys are forbidden")
     if re.search(r"(?m)(?:^|\s)(?:[&*][A-Za-z0-9_-]+|<<:)(?:\s|$)", text):
         errors.append("YAML anchors, aliases, and merge keys are forbidden")
+    if "!" in without_expressions or re.search(r"(?m)^\s*%(?:YAML|TAG)\b", without_expressions):
+        errors.append("YAML tags and directives are forbidden")
     if any(marker in without_expressions for marker in ("{", "}", "[", "]")):
         errors.append("YAML flow collections are forbidden")
     if re.search(r"(?m)^\s*\?\s+", text):

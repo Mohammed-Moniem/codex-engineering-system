@@ -122,19 +122,17 @@ def git_arguments(tokens: list[str], index: int) -> list[str]:
             "--no-optional-locks", "--bare", "--no-replace-objects",
         }:
             offset += 1
-        elif token in {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--super-prefix"}:
+        elif token in {"-C", "--git-dir", "--work-tree", "--namespace", "--super-prefix"}:
             if offset + 1 >= len(args):
                 raise RuntimeError(DYNAMIC_REASON)
-            if token == "-c" and args[offset + 1].casefold().startswith("alias."):
-                raise RuntimeError(DYNAMIC_REASON)
             offset += 2
+        elif token == "-c" or token.startswith("-c") and token != "-C":
+            raise RuntimeError(DYNAMIC_REASON)
         elif token.startswith("-C") and token != "-C":
             offset += 1
-        elif token.startswith("-c") and token != "-c":
-            if token[2:].casefold().startswith("alias."):
-                raise RuntimeError(DYNAMIC_REASON)
-            offset += 1
-        elif any(token.startswith(prefix) for prefix in ("--git-dir=", "--work-tree=", "--namespace=", "--exec-path=", "--super-prefix=")):
+        elif token.startswith("--exec-path"):
+            raise RuntimeError(DYNAMIC_REASON)
+        elif any(token.startswith(prefix) for prefix in ("--git-dir=", "--work-tree=", "--namespace=", "--super-prefix=")):
             offset += 1
         elif token.startswith("--config-env"):
             raise RuntimeError(DYNAMIC_REASON)
@@ -161,37 +159,6 @@ def executable_name(token: str) -> str:
     return name[:-4] if name.endswith(".exe") else name
 
 
-def clean_is_dry_run(args: list[str]) -> bool:
-    """Recognize -n without mistaking an exclude pattern for an option."""
-    skip_next = False
-    for token in args:
-        if skip_next:
-            skip_next = False
-            continue
-        if token == "--":
-            break
-        if token.startswith("--"):
-            if token.startswith("--dry"):
-                return True
-            if token == "--exclude":
-                skip_next = True
-            continue
-        if not token.startswith("-") or token == "-":
-            continue
-        index = 0
-        flags = token[1:]
-        while index < len(flags):
-            flag = flags[index]
-            if flag == "n":
-                return True
-            if flag == "e":
-                if index + 1 == len(flags):
-                    skip_next = True
-                break
-            index += 1
-    return False
-
-
 def destructive(args: list[str]) -> bool:
     if not args:
         return False
@@ -200,15 +167,21 @@ def destructive(args: list[str]) -> bool:
     if any(marker in subcommand for marker in ("$", "`", "${")):
         raise RuntimeError(DYNAMIC_REASON)
     if subcommand == "reset":
-        return any(has_long_prefix(rest, prefix) for prefix in ("--h", "--mer", "--k"))
+        return any(has_long_prefix(rest, prefix) for prefix in ("--h", "--mer", "--k", "--rec"))
     if subcommand == "clean":
-        return not clean_is_dry_run(rest)
+        return True
     if subcommand == "checkout":
         return True
     if subcommand == "restore":
-        return "--staged" not in rest or has_short_flag(rest, "W") or has_long_prefix(rest, "--work")
+        return True
     if subcommand == "branch":
-        return has_short_flag(rest, "d") or has_short_flag(rest, "D") or has_long_prefix(rest, "--del")
+        return (
+            any(has_short_flag(rest, flag) for flag in ("d", "D", "f", "M", "C"))
+            or has_long_prefix(rest, "--del")
+            or has_long_prefix(rest, "--force")
+        )
+    if subcommand == "config":
+        return not bool(rest and rest[0] in {"--get", "--get-all", "--get-regexp", "--list", "-l", "get", "list"})
     if subcommand == "stash":
         return bool(rest and rest[0] in {"drop", "clear"})
     if subcommand == "push":
@@ -220,9 +193,9 @@ def destructive(args: list[str]) -> bool:
     if subcommand == "maintenance":
         return True
     if subcommand == "rm":
-        return "--cached" not in rest
+        return True
     if subcommand == "worktree":
-        return bool(rest and rest[0] in {"remove", "prune"})
+        return not bool(rest and rest[0] == "list")
     if subcommand == "switch":
         return (
             any(token.startswith("-C") for token in rest)
@@ -230,12 +203,22 @@ def destructive(args: list[str]) -> bool:
             or has_long_prefix(rest, "--force")
             or has_long_prefix(rest, "--force-c")
             or has_long_prefix(rest, "--discard")
+            or has_long_prefix(rest, "--or")
         )
     if subcommand == "tag":
-        return has_short_flag(rest, "d") or has_long_prefix(rest, "--del")
+        return (
+            has_short_flag(rest, "d")
+            or has_short_flag(rest, "f")
+            or has_long_prefix(rest, "--del")
+            or has_long_prefix(rest, "--force")
+        )
     if subcommand == "submodule":
-        return "foreach" in rest
-    return subcommand in {"filter-branch", "filter-repo"}
+        return True
+    if subcommand == "notes":
+        return bool(rest and rest[0] in {"remove", "prune"})
+    if subcommand == "replace":
+        return has_short_flag(rest, "d") or has_short_flag(rest, "f") or has_long_prefix(rest, "--del")
+    return subcommand in {"difftool", "filter-branch", "filter-repo", "mergetool", "repack"}
 
 
 def command_is_destructive(command: str, depth: int = 0) -> bool:
@@ -271,6 +254,8 @@ def command_is_destructive(command: str, depth: int = 0) -> bool:
                         break
             if base == "git" and destructive(git_arguments(part, position)):
                 return True
+            if base == "git" and any(ASSIGNMENT.fullmatch(item) for item in part[:position]):
+                raise RuntimeError(DYNAMIC_REASON)
     return False
 
 
