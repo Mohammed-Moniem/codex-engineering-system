@@ -4,14 +4,17 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
+import stat
 import subprocess
 import sys
 
 
 MAX_INPUT = 65_536
 MAX_POINTER = 256
+MAX_DIRECTORY_ENTRIES = 10_000
 SAFE_POINTER = re.compile(r"^\.codex/wayfinder/efforts/[a-z0-9][a-z0-9-]{0,63}/MAP\.md$")
 
 
@@ -30,7 +33,7 @@ def read_payload() -> dict[str, object] | None:
         return None
     try:
         value = json.loads(raw, object_pairs_hook=no_duplicate_keys)
-    except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError):
         return None
     return value if isinstance(value, dict) else None
 
@@ -59,8 +62,15 @@ def exact_case(path: Path, root: Path) -> bool:
     current = root
     try:
         for part in path.relative_to(root).parts:
-            names = {entry.name for entry in current.iterdir()}
-            if part not in names:
+            matched = False
+            with os.scandir(current) as entries:
+                for count, entry in enumerate(entries, start=1):
+                    if count > MAX_DIRECTORY_ENTRIES:
+                        return False
+                    if entry.name == part:
+                        matched = True
+                        break
+            if not matched:
                 return False
             current = current / part
     except (OSError, ValueError):
@@ -70,12 +80,24 @@ def exact_case(path: Path, root: Path) -> bool:
 
 def active_pointer(root: Path) -> str | None:
     pointer_file = root / ".codex" / "wayfinder" / "ACTIVE"
+    descriptor: int | None = None
     try:
-        if pointer_file.is_symlink() or not pointer_file.is_file():
+        before = pointer_file.lstat()
+        if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
             return None
-        raw = pointer_file.read_bytes()
+        flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(pointer_file, flags)
+        opened = os.fstat(descriptor)
+        if not stat.S_ISREG(opened.st_mode) or (before.st_dev, before.st_ino) != (opened.st_dev, opened.st_ino):
+            return None
+        if opened.st_size > MAX_POINTER:
+            return None
+        raw = os.read(descriptor, MAX_POINTER + 1)
     except OSError:
         return None
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
     if not raw or len(raw) > MAX_POINTER or b"\x00" in raw:
         return None
     try:

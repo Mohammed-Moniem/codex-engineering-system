@@ -16,7 +16,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parent.parent
-MAX_FILE = 2_000_000
+MAX_FILE = 16_000_000
 PLACEHOLDERS = ("YOUR_", "EXAMPLE_", "DUMMY_", "REDACTED", "CHANGEME")
 
 
@@ -24,15 +24,17 @@ def detector_patterns() -> list[tuple[str, re.Pattern[str]]]:
     return [
         ("private-key", re.compile("-----BEGIN " + r"(?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----")),
         ("github-token", re.compile("gh" + r"[pousr]_[A-Za-z0-9]{30,}")),
-        ("aws-access-key", re.compile("AK" + r"IA[0-9A-Z]{16}")),
+        ("aws-access-key", re.compile(r"(?:AKIA|ASIA)[0-9A-Z]{16}")),
         ("slack-token", re.compile("xo" + r"x[baprs]-[A-Za-z0-9-]{20,}")),
+        ("stripe-live-secret", re.compile("sk" + r"_live_[A-Za-z0-9]{16,}")),
         ("service-token", re.compile("sk" + r"-[A-Za-z0-9_-]{24,}")),
     ]
 
 
 ASSIGNMENT = re.compile(
-    r"(?i)(?:api[_-]?key|access[_-]?token|auth[_-]?token|password|passwd|secret)"
-    r"\s*[:=]\s*['\"]([^'\"\s]{16,})['\"]"
+    r"(?i)(?:[a-z0-9]+[_-])*(?:api[_-]?key|access[_-]?token|auth[_-]?token|password|passwd|secret)"
+    r"(?:[_-][a-z0-9]+)*"
+    r"\s*[:=]\s*(?:\"([^\"\s]{16,4096})\"|'([^'\s]{16,4096})'|([A-Za-z0-9_./+=:-]{16,4096}))"
 )
 
 
@@ -50,7 +52,7 @@ def findings(text: str) -> list[tuple[str, str]]:
             if not value.upper().startswith(PLACEHOLDERS):
                 found.append((detector, value))
     for match in ASSIGNMENT.finditer(text):
-        value = match.group(1)
+        value = next(group for group in match.groups() if group is not None)
         if not value.upper().startswith(PLACEHOLDERS) and entropy(value) >= 3.5:
             found.append(("high-entropy-secret-assignment", value))
     return found
@@ -58,6 +60,16 @@ def findings(text: str) -> list[tuple[str, str]]:
 
 def fingerprint(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8", "replace")).hexdigest()[:12]
+
+
+def safe_label(value: str) -> str:
+    return json.dumps(value[:500], ensure_ascii=True)[1:-1]
+
+
+def report_label(value: str) -> str:
+    if findings(value):
+        return f"<redacted-path:{fingerprint(value)}>"
+    return safe_label(value)
 
 
 def run_git(
@@ -86,25 +98,90 @@ def worktree_files(root: Path = ROOT) -> Iterable[tuple[str, bytes]]:
         paths = [item for item in listed.stdout.split(b"\0") if item]
         for raw in paths:
             path = root / raw.decode("utf-8", "surrogateescape")
-            if path.is_file() and not path.is_symlink() and path.stat().st_size <= MAX_FILE:
-                yield path.relative_to(root).as_posix(), path.read_bytes()
+            if not path.is_symlink() and path.is_file():
+                label = path.relative_to(root).as_posix()
+                if path.stat().st_size > MAX_FILE:
+                    raise RuntimeError(f"unscanned file exceeds {MAX_FILE} bytes: {report_label(label)}")
+                yield label, path.read_bytes()
         return
+    resolved_root = root.resolve(strict=True)
     for path in root.rglob("*"):
-        if path.is_file() and ".git" not in path.parts and path.stat().st_size <= MAX_FILE:
-            yield path.relative_to(root).as_posix(), path.read_bytes()
+        try:
+            if path.is_symlink() or not path.is_file() or ".git" in path.parts:
+                continue
+            resolved = path.resolve(strict=True)
+            if not resolved.is_relative_to(resolved_root):
+                raise RuntimeError("fallback path escapes the scan root")
+            label = path.relative_to(root).as_posix()
+            if path.stat().st_size > MAX_FILE:
+                raise RuntimeError(f"unscanned file exceeds {MAX_FILE} bytes: {report_label(label)}")
+            yield label, path.read_bytes()
+        except OSError as exc:
+            raise RuntimeError("unable to inspect a fallback worktree path") from exc
+
+
+def index_records(root: Path = ROOT) -> Iterable[tuple[str, bytes]]:
+    listed = subprocess.run(
+        ["git", "ls-files", "--stage", "-z"],
+        cwd=root,
+        capture_output=True,
+        check=False,
+        timeout=10,
+    )
+    if listed.returncode != 0:
+        raise RuntimeError("unable to enumerate the Git index")
+    for record in (item for item in listed.stdout.split(b"\0") if item):
+        metadata, separator, raw_path = record.partition(b"\t")
+        fields = metadata.split()
+        if not separator or len(fields) != 3:
+            raise RuntimeError("unable to parse a Git index entry")
+        mode, object_id, stage = fields
+        label = raw_path.decode("utf-8", "surrogateescape")
+        if stage != b"0":
+            raise RuntimeError(f"unmerged index entry cannot be scanned safely: {report_label(label)}")
+        if mode == b"160000":
+            yield f"{label}@index", b""
+            continue
+        size = subprocess.run(
+            ["git", "cat-file", "-s", object_id.decode("ascii")],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+        if size.returncode != 0:
+            raise RuntimeError("unable to inspect an indexed Git object")
+        if int(size.stdout.strip()) > MAX_FILE:
+            raise RuntimeError(f"unscanned index object exceeds {MAX_FILE} bytes: {report_label(label)}")
+        blob = subprocess.run(
+            ["git", "cat-file", "blob", object_id.decode("ascii")],
+            cwd=root,
+            capture_output=True,
+            check=False,
+            timeout=10,
+        )
+        if blob.returncode != 0:
+            raise RuntimeError("unable to read an indexed Git object")
+        yield f"{label}@index", blob.stdout
 
 
 def scan_records(records: Iterable[tuple[str, bytes]], scope: str) -> list[str]:
     reports: list[str] = []
     for label, raw in records:
-        if b"\x00" in raw[:8192]:
-            continue
-        try:
-            text = raw.decode("utf-8")
-        except UnicodeDecodeError:
-            continue
-        for detector, value in findings(text):
-            reports.append(f"{scope}:{label}:{detector}:{fingerprint(value)}")
+        display = report_label(label)
+        for detector, value in findings(label):
+            reports.append(f"{scope}:{display}:path-{detector}:{fingerprint(value)}")
+        decoded = [raw.decode("latin-1")]
+        if b"\x00" in raw and len(raw) % 2 == 0:
+            for encoding in ("utf-16-le", "utf-16-be"):
+                try:
+                    decoded.append(raw.decode(encoding))
+                except UnicodeDecodeError:
+                    pass
+        for text in decoded:
+            for detector, value in findings(text):
+                reports.append(f"{scope}:{display}:{detector}:{fingerprint(value)}")
     return reports
 
 
@@ -115,7 +192,7 @@ def history_records(root: Path = ROOT) -> Iterable[tuple[str, bytes]]:
     shallow = run_git(["rev-parse", "--is-shallow-repository"], root=root)
     if shallow.returncode == 0 and shallow.stdout.strip() == "true":
         raise RuntimeError("history scan refuses a shallow repository")
-    objects = run_git(["rev-list", "--objects", "--all"], root=root)
+    objects = run_git(["-c", "core.quotePath=true", "rev-list", "--objects", "--all"], root=root)
     if objects.returncode != 0:
         raise RuntimeError("unable to enumerate Git history")
     paths: dict[str, str] = {}
@@ -133,17 +210,24 @@ def history_records(root: Path = ROOT) -> Iterable[tuple[str, bytes]]:
         raise RuntimeError("unable to inspect Git objects")
     for line in checked.stdout.splitlines():
         object_id, kind, size_text = line.split(" ", 2)
-        if kind != "blob" or int(size_text) > MAX_FILE:
+        if kind not in {"blob", "commit", "tag"}:
             continue
+        size = int(size_text)
+        if size > MAX_FILE:
+            label = paths.get(object_id, f"<{kind}>")
+            raise RuntimeError(f"unscanned Git object exceeds {MAX_FILE} bytes: {report_label(label)}")
         blob = subprocess.run(
-            ["git", "cat-file", "blob", object_id],
+            ["git", "cat-file", kind, object_id],
             cwd=root,
             capture_output=True,
             check=False,
             timeout=10,
         )
         if blob.returncode == 0:
-            yield f"{paths.get(object_id, '<unmapped>')}@{object_id[:12]}", blob.stdout
+            label = paths.get(object_id, f"<{kind}>")
+            yield f"{label}@{object_id[:12]}", blob.stdout
+        else:
+            raise RuntimeError("unable to read a reachable Git object")
 
 
 def main() -> int:
@@ -158,9 +242,10 @@ def main() -> int:
     scan_worktree = args.all or args.worktree or not args.history
     scan_history = args.all or args.history
     reports: list[str] = []
-    if scan_worktree:
-        reports.extend(scan_records(worktree_files(), "worktree"))
     try:
+        if scan_worktree:
+            reports.extend(scan_records(worktree_files(), "worktree"))
+            reports.extend(scan_records(index_records(), "index"))
         if scan_history:
             reports.extend(scan_records(history_records(), "history"))
     except RuntimeError as exc:
@@ -174,7 +259,7 @@ def main() -> int:
             print(f"POTENTIAL_SECRET {report}")
         print(f"Secret scan failed with {len(reports)} redacted finding(s).")
     else:
-        scopes = "worktree and history" if scan_worktree and scan_history else "worktree" if scan_worktree else "history"
+        scopes = "worktree, index, and history" if scan_worktree and scan_history else "worktree and index" if scan_worktree else "history"
         print(f"Secret scan clean: {scopes}.")
     return 1 if reports else 0
 

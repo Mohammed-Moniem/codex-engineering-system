@@ -17,7 +17,7 @@ Malformed input fails open with no added context because this hook is an ergonom
 
 ## PreToolUse Git guardrail
 
-`pre_tool_use.py` receives structured `Bash` input, tokenizes commands without executing them, follows common wrappers such as `env` and `sh -c`, and denies selected commands that discard local state or rewrite remote history. Malformed or dynamically constructed Git operations fail closed.
+`pre_tool_use.py` receives structured `Bash` input, tokenizes commands without executing them, finds Git invocations through common wrappers and compound syntax, and denies selected commands that discard local state or rewrite remote history. It blocks Bash-based pushes and garbage collection because effective Git configuration can make those operations destructive. Ambiguous Git options, aliases, shell expansion, glob syntax, and unrecognized Git subcommands fail closed. Because the hook is deliberately conservative, use a reviewed non-Bash specialized tool for commands that require those features.
 
 The deny response uses a constant reason code and does not echo attacker-controlled command text. Safe read-only commands and dry runs remain available.
 

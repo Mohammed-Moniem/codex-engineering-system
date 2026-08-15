@@ -1,6 +1,6 @@
 interface:
   display_name: "Debug"
   short_description: "Diagnose a failure with reproducible evidence"
-  default_prompt: "Use $debug to reproduce, isolate, fix, and regression-test this failure."
+  default_prompt: "Use $debug to reproduce and isolate this failure, repairing it only when requested."
 policy:
   allow_implicit_invocation: true

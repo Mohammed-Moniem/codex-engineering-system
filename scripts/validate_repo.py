@@ -7,6 +7,7 @@ import ast
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 from urllib.parse import unquote
 
@@ -15,7 +16,9 @@ ROOT = Path(__file__).resolve().parent.parent
 SKILLS = ROOT / ".agents" / "skills"
 NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 LINK = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
-ACTION = re.compile(r"^\s*-?\s*uses:\s*[^@\s]+@([^\s#]+)", re.MULTILINE)
+ACTION_LINE = re.compile(
+    r"^\s*(?:-\s+)?uses:\s+[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@([0-9a-f]{40})(?:\s+#.*)?$"
+)
 ALLOWED_INTERFACE = {"display_name", "short_description", "default_prompt"}
 
 
@@ -29,6 +32,20 @@ class Validation:
         except (TypeError, ValueError):
             label = str(path)
         self.errors.append(f"{label}: {message}")
+
+
+def tracked_paths(check: Validation) -> set[str]:
+    result = subprocess.run(
+        ["git", "ls-files", "-z"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+        timeout=10,
+    )
+    if result.returncode != 0:
+        check.error(ROOT, "unable to enumerate tracked files")
+        return set()
+    return {item.decode("utf-8", "surrogateescape") for item in result.stdout.split(b"\0") if item}
 
 
 def parse_frontmatter(path: Path, check: Validation) -> tuple[dict[str, str], str]:
@@ -106,6 +123,7 @@ def parse_openai_yaml(path: Path, check: Validation) -> dict[str, object]:
 
 def validate_skills(check: Validation) -> None:
     names: dict[str, Path] = {}
+    tracked = tracked_paths(check)
     skill_dirs = sorted(path for path in SKILLS.iterdir() if path.is_dir())
     if not skill_dirs:
         check.error(SKILLS, "no skills found")
@@ -114,6 +132,10 @@ def validate_skills(check: Validation) -> None:
         if not skill_file.is_file():
             check.error(folder, "SKILL.md is missing")
             continue
+        for required_path in (skill_file, folder / "agents" / "openai.yaml"):
+            relative = required_path.relative_to(ROOT).as_posix()
+            if relative not in tracked:
+                check.error(required_path, "required skill file is not tracked or staged")
         metadata, text = parse_frontmatter(skill_file, check)
         name = metadata.get("name", "")
         description = metadata.get("description", "")
@@ -155,6 +177,7 @@ def validate_skills(check: Validation) -> None:
 
 
 def validate_links(check: Validation) -> None:
+    tracked = tracked_paths(check)
     for path in sorted(ROOT.rglob("*.md")):
         if ".git" in path.parts:
             continue
@@ -169,6 +192,10 @@ def validate_links(check: Validation) -> None:
                 check.error(path, f"local link escapes repository: {target}")
             elif not resolved.exists():
                 check.error(path, f"broken local link: {target}")
+            else:
+                relative = resolved.relative_to(ROOT.resolve()).as_posix()
+                if relative not in tracked:
+                    check.error(path, f"local link target is not tracked: {target}")
 
 
 def validate_manifest(check: Validation) -> None:
@@ -236,26 +263,93 @@ def validate_python(check: Validation) -> None:
                     check.error(path, f"third-party Python import is not allowed: {module}")
 
 
-def validate_workflow(check: Validation) -> None:
-    path = ROOT / ".github" / "workflows" / "validate.yml"
-    if not path.is_file():
-        check.error(path, "validation workflow is missing")
+def workflow_policy_errors(text: str) -> list[str]:
+    errors: list[str] = []
+    lines = text.splitlines()
+    if "\t" in text or re.search(r"(?m)^\s*(?:-\s*)?[A-Za-z_][A-Za-z0-9_-]*\s+:.*$", text):
+        errors.append("workflow must use canonical key syntax without tabs or space-before-colon aliases")
+    if re.search(r'''(?m)^\s*(?:-\s*)?["'][^"']+["']\s*:.*$''', text):
+        errors.append("quoted YAML mapping keys are forbidden")
+    if re.search(r"(?m)(?:^|\s)(?:[&*][A-Za-z0-9_-]+|<<:)(?:\s|$)", text):
+        errors.append("YAML anchors, aliases, and merge keys are forbidden")
+    permission_roots = [index for index, line in enumerate(lines) if line == "permissions:"]
+    if len(permission_roots) != 1:
+        errors.append("workflow must contain exactly one top-level permissions block")
+    else:
+        index = permission_roots[0] + 1
+        values: list[str] = []
+        while index < len(lines) and (not lines[index] or lines[index].startswith(" ")):
+            if lines[index]:
+                values.append(lines[index])
+            index += 1
+        if values != ["  contents: read"]:
+            errors.append("the sole effective permission must be contents: read")
+    if any(line.startswith((" ", "\t")) and line.lstrip().startswith("permissions:") for line in lines):
+        errors.append("job-level permissions are forbidden")
+    if re.search(r"(?im)^\s*(?:permissions:\s*)?write-all\s*$|^\s*[a-z-]+:\s*write\s*$", text):
+        errors.append("write permissions are forbidden")
+    action_lines = [line for line in lines if re.search(r"\buses\s*:", line) and not line.lstrip().startswith("#")]
+    if not action_lines:
+        errors.append("workflow must declare at least one pinned action")
+    for line in action_lines:
+        if ACTION_LINE.fullmatch(line) is None:
+            errors.append("every action must use canonical owner/repository@40-hex syntax")
+    return errors
+
+
+def validate_distribution_inventory(check: Validation) -> None:
+    tracked = tracked_paths(check)
+    untracked = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+        timeout=10,
+    )
+    if untracked.returncode != 0:
+        check.error(ROOT, "unable to enumerate untracked files")
+    else:
+        for raw in (item for item in untracked.stdout.split(b"\0") if item):
+            check.error(raw.decode("utf-8", "surrogateescape"), "untracked non-ignored file is outside the publication inventory")
+
+    package_roots = (ROOT / ".agents", ROOT / ".codex-plugin", ROOT / "hooks")
+    for package_root in package_roots:
+        for path in package_root.rglob("*"):
+            if "__pycache__" in path.parts or path.suffix in {".pyc", ".pyo"}:
+                continue
+            if path.is_symlink():
+                check.error(path, "nested package symlinks are forbidden")
+                continue
+            if path.is_file():
+                relative = path.relative_to(ROOT).as_posix()
+                if relative not in tracked:
+                    check.error(path, "package file is not tracked or staged")
+    if "skills" not in tracked:
+        check.error(ROOT / "skills", "plugin skills bridge is not tracked or staged")
+
+
+def validate_workflows(check: Validation) -> None:
+    directory = ROOT / ".github" / "workflows"
+    workflows = sorted((*directory.glob("*.yml"), *directory.glob("*.yaml")))
+    required_path = directory / "validate.yml"
+    if required_path not in workflows:
+        check.error(required_path, "validation workflow is missing")
         return
-    text = path.read_text(encoding="utf-8")
-    if "pull_request_target" in text:
-        check.error(path, "pull_request_target is forbidden")
-    if "permissions:\n  contents: read" not in text:
-        check.error(path, "workflow must declare read-only contents permission")
+    for path in workflows:
+        text = path.read_text(encoding="utf-8")
+        if "pull_request_target" in text:
+            check.error(path, "pull_request_target is forbidden")
+        for error in workflow_policy_errors(text):
+            check.error(path, error)
+        if "timeout-minutes:" not in text:
+            check.error(path, "job timeout is required")
+
+    text = required_path.read_text(encoding="utf-8")
     if "fetch-depth: 0" not in text:
-        check.error(path, "checkout must fetch full history for secret scanning")
-    if "timeout-minutes:" not in text:
-        check.error(path, "job timeout is required")
-    for ref in ACTION.findall(text):
-        if not re.fullmatch(r"[0-9a-f]{40}", ref):
-            check.error(path, f"action is not pinned to an immutable SHA: {ref}")
+        check.error(required_path, "checkout must fetch full history for secret scanning")
     for required in ("scripts/validate_repo.py", "unittest discover", "scripts/scan_secrets.py --all"):
         if required not in text:
-            check.error(path, f"workflow does not run {required}")
+            check.error(required_path, f"workflow does not run {required}")
 
 
 def validate_content(check: Validation) -> None:
@@ -264,8 +358,19 @@ def validate_content(check: Validation) -> None:
     unfinished = re.compile(rf"\[(?:{unfinished_word}|{placeholder_word}):|{unfinished_word}:")
     private_prefix = "/" + "Users" + "/"
     file_uri = "file" + "://"
-    for path in sorted(ROOT.rglob("*")):
-        if not path.is_file() or ".git" in path.parts:
+    listed = subprocess.run(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+        timeout=10,
+    )
+    if listed.returncode != 0:
+        check.error(ROOT, "unable to enumerate publishable content")
+        return
+    paths = sorted(ROOT / item.decode("utf-8", "surrogateescape") for item in listed.stdout.split(b"\0") if item)
+    for path in paths:
+        if path.is_symlink() or not path.is_file():
             continue
         if path.stat().st_size > 2_000_000:
             check.error(path, "file exceeds 2 MB repository limit")
@@ -305,8 +410,9 @@ def main() -> int:
     validate_skills(check)
     validate_links(check)
     validate_manifest(check)
+    validate_distribution_inventory(check)
     validate_python(check)
-    validate_workflow(check)
+    validate_workflows(check)
     validate_content(check)
     validate_evals(check)
     if check.errors:

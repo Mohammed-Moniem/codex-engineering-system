@@ -47,6 +47,21 @@ class WayfinderInitTests(unittest.TestCase):
             self.assertEqual(0, first.returncode)
             self.assertNotEqual(0, second.returncode)
 
+    @unittest.skipIf(sys.platform == "win32", "secure directory descriptors are unavailable on Windows")
+    def test_rejects_symlinked_state_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
+            repo = Path(directory)
+            subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True, timeout=5)
+            (repo / ".codex").symlink_to(Path(outside), target_is_directory=True)
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "--root", str(repo), "--slug", "safe", "--destination", "Safe destination"],
+                capture_output=True,
+                check=False,
+                timeout=5,
+            )
+            self.assertNotEqual(0, result.returncode)
+            self.assertEqual([], list(Path(outside).iterdir()))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -37,14 +37,14 @@ node_modules/
 .yarn/
 
 # Build, test, and scratch output
-build/
-dist/
-coverage/
+/build/
+/dist/
+/coverage/
 .coverage
 htmlcov/
-tmp/
-temp/
-scratch/
+/tmp/
+/temp/
+/scratch/
 *.log
 
 # Editors and operating systems

@@ -10,9 +10,10 @@ description: Diagnose and fix a hard bug, flaky failure, or performance regressi
 3. Form 3–5 falsifiable hypotheses ranked by evidence and cost to test.
 4. Instrument the boundary that separates the leading hypotheses. Avoid broad speculative edits.
 5. Test one hypothesis at a time and update the evidence table.
-6. Fix the verified cause with the smallest durable change.
-7. Add a regression test at a stable observable seam.
-8. Re-run the original reproduction, focused checks, and relevant surrounding checks. Remove temporary instrumentation.
-9. Write a concise postmortem: cause, why existing controls missed it, fix, regression evidence, and prevention only when justified.
+6. Check the requested authority before modifying files. For diagnosis-only requests, stop with the evidence-backed cause and proposed remediation; do not implement a fix.
+7. When repair was requested, fix the verified cause with the smallest durable change.
+8. Add a regression test at a stable observable seam.
+9. Re-run the original reproduction, focused checks, and relevant surrounding checks. Remove temporary instrumentation.
+10. Write a concise postmortem: cause, why existing controls missed it, fix, regression evidence, and prevention only when justified.
 
 If no reliable feedback loop can be built, say what is missing and route external knowledge to `questionnaire` or a bounded experiment to `prototype`.

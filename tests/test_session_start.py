@@ -72,8 +72,18 @@ class SessionStartTests(unittest.TestCase):
             )
             self.assertEqual((0, "", ""), run_hook(root))
 
+    def test_oversized_active_pointer_is_silent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            initialize_repo(root)
+            location = root / ".codex" / "wayfinder"
+            location.mkdir(parents=True)
+            (location / "ACTIVE").write_bytes(b"x" * 1_000_000)
+            self.assertEqual((0, "", ""), run_hook(root))
+
     def test_malformed_input_fails_open_without_reflection(self) -> None:
-        for payload in ("not-json", "{}", '{"hook_event_name":"SessionStart","hook_event_name":"SessionStart"}'):
+        deeply_nested = "[" * 2_000 + "]" * 2_000
+        for payload in ("not-json", "{}", '{"hook_event_name":"SessionStart","hook_event_name":"SessionStart"}', deeply_nested):
             with tempfile.TemporaryDirectory() as directory:
                 self.assertEqual((0, "", ""), run_hook(Path(directory), raw=payload))
 

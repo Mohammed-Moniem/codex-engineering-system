@@ -16,6 +16,17 @@ DENY_REASON = "DG001: destructive Git command blocked by repository hook."
 DYNAMIC_REASON = "DG002: dynamic Git command could not be classified safely."
 OPERATORS = {";", "&&", "||", "|", "&", "(", ")"}
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=.*$", re.DOTALL)
+SHELLS = {"sh", "bash", "zsh", "dash"}
+KNOWN_GIT_SUBCOMMANDS = {
+    "add", "am", "apply", "archive", "bisect", "blame", "branch", "bundle",
+    "checkout", "cherry", "cherry-pick", "clean", "clone", "commit", "config",
+    "describe", "diff", "difftool", "fetch", "format-patch", "fsck", "gc", "grep",
+    "init", "log", "maintenance", "merge", "mergetool", "mv", "notes", "pull",
+    "push", "range-diff", "rebase", "reflog", "remote", "repack", "replace",
+    "request-pull", "reset", "restore", "revert", "rm", "shortlog", "show",
+    "show-branch", "sparse-checkout", "stash", "status", "submodule", "switch",
+    "tag", "worktree",
+}
 
 
 def no_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -45,7 +56,7 @@ def read_payload() -> dict[str, object] | None:
         return None
     try:
         value = json.loads(raw, object_pairs_hook=no_duplicate_keys)
-    except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError, ValueError):
         return None
     return value if isinstance(value, dict) else None
 
@@ -53,7 +64,8 @@ def read_payload() -> dict[str, object] | None:
 def tokenize(command: str) -> list[str]:
     if "\x00" in command:
         raise ValueError("NUL")
-    normalized = command.replace("\r\n", "\n").replace("\r", "\n").replace("\n", ";")
+    normalized = command.replace("\\\r\n", "").replace("\\\n", "")
+    normalized = normalized.replace("\r\n", "\n").replace("\r", "\n").replace("\n", ";")
     lexer = shlex.shlex(normalized, posix=True, punctuation_chars=";&|()")
     lexer.whitespace_split = True
     lexer.commenters = ""
@@ -96,32 +108,61 @@ def skip_wrapper(tokens: list[str], index: int) -> int:
     return index
 
 
-def git_arguments(tokens: list[str], index: int) -> list[str] | None:
-    index = skip_wrapper(tokens, index)
-    if index >= len(tokens):
-        return None
-    command = tokens[index]
-    if any(marker in command for marker in ("$", "`")):
+def git_arguments(tokens: list[str], index: int) -> list[str]:
+    args = tokens[index + 1:]
+    if any(any(marker in token for marker in ("$", "`", "*", "?", "[", "]")) for token in args):
         raise RuntimeError(DYNAMIC_REASON)
-    if os.path.basename(command) != "git":
-        return None
-    args = tokens[index + 1 :]
     offset = 0
     while offset < len(args):
         token = args[offset]
-        if token in {"--no-pager", "--paginate", "--literal-pathspecs", "--no-optional-locks"}:
-            offset += 1
-        elif token in {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}:
-            offset += 2
-        elif any(token.startswith(prefix) for prefix in ("--git-dir=", "--work-tree=", "--namespace=", "--exec-path=")):
-            offset += 1
-        else:
+        if not token.startswith("-"):
             break
-    return args[offset:]
+        if token in {
+            "--no-pager", "--paginate", "-p", "-P", "--literal-pathspecs",
+            "--no-optional-locks", "--bare", "--no-replace-objects",
+        }:
+            offset += 1
+        elif token in {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--super-prefix"}:
+            if offset + 1 >= len(args):
+                raise RuntimeError(DYNAMIC_REASON)
+            if token == "-c" and args[offset + 1].casefold().startswith("alias."):
+                raise RuntimeError(DYNAMIC_REASON)
+            offset += 2
+        elif token.startswith("-C") and token != "-C":
+            offset += 1
+        elif token.startswith("-c") and token != "-c":
+            if token[2:].casefold().startswith("alias."):
+                raise RuntimeError(DYNAMIC_REASON)
+            offset += 1
+        elif any(token.startswith(prefix) for prefix in ("--git-dir=", "--work-tree=", "--namespace=", "--exec-path=", "--super-prefix=")):
+            offset += 1
+        elif token.startswith("--config-env"):
+            raise RuntimeError(DYNAMIC_REASON)
+        else:
+            raise RuntimeError(DYNAMIC_REASON)
+    effective = args[offset:]
+    if not effective or effective[0] not in KNOWN_GIT_SUBCOMMANDS:
+        raise RuntimeError(DYNAMIC_REASON)
+    if effective[0] == "config" and any(token.casefold().lstrip("-").startswith("alias.") for token in effective[1:]):
+        raise RuntimeError(DYNAMIC_REASON)
+    return effective
 
 
 def has_short_flag(args: list[str], flag: str) -> bool:
     return any(token.startswith("-") and not token.startswith("--") and flag in token[1:] for token in args)
+
+
+def has_long_flag(args: list[str], flag: str) -> bool:
+    return any(token == flag or token.startswith(flag + "=") for token in args)
+
+
+def has_long_prefix(args: list[str], prefix: str) -> bool:
+    return any(token.startswith(prefix) for token in args if token.startswith("--"))
+
+
+def executable_name(token: str) -> str:
+    name = os.path.basename(token).casefold()
+    return name[:-4] if name.endswith(".exe") else name
 
 
 def destructive(args: list[str]) -> bool:
@@ -132,59 +173,80 @@ def destructive(args: list[str]) -> bool:
     if any(marker in subcommand for marker in ("$", "`", "${")):
         raise RuntimeError(DYNAMIC_REASON)
     if subcommand == "reset":
-        return any(flag in rest for flag in ("--hard", "--merge", "--keep"))
+        return any(has_long_prefix(rest, prefix) for prefix in ("--h", "--mer", "--k"))
     if subcommand == "clean":
-        dry = "--dry-run" in rest or has_short_flag(rest, "n")
-        forced = "--force" in rest or has_short_flag(rest, "f")
-        return forced and not dry
+        dry = has_long_flag(rest, "--dry-run") or has_short_flag(rest, "n")
+        return not dry
     if subcommand == "checkout":
-        return "--" in rest or "." in rest or "--force" in rest or has_short_flag(rest, "f")
+        if "--" in rest or "." in rest or has_long_prefix(rest, "--f") or has_short_flag(rest, "f"):
+            return True
+        if any(token.startswith("-B") for token in rest):
+            return True
+        positional = [token for token in rest if not token.startswith("-")]
+        creating = "-b" in rest or "--branch" in rest
+        return len(positional) >= 2 and not creating
     if subcommand == "restore":
-        return "--staged" not in rest or "--worktree" in rest
+        return "--staged" not in rest or has_short_flag(rest, "W") or has_long_prefix(rest, "--work")
     if subcommand == "branch":
-        return "-D" in rest or ("--delete" in rest and "--force" in rest)
+        return has_short_flag(rest, "d") or has_short_flag(rest, "D") or has_long_prefix(rest, "--del")
     if subcommand == "stash":
         return bool(rest and rest[0] in {"drop", "clear"})
     if subcommand == "push":
-        return (
-            any(flag in rest for flag in ("--force", "--force-with-lease", "--delete", "-f"))
-            or any(token.startswith("+") or token.startswith(":") for token in rest)
-        )
+        return True
     if subcommand == "reflog":
         return bool(rest and rest[0] in {"expire", "delete"})
     if subcommand == "gc":
-        return any(token == "--prune=now" for token in rest)
+        return True
     if subcommand == "rm":
         return "--cached" not in rest
     if subcommand == "worktree":
-        return bool(rest and rest[0] in {"remove", "prune"} and ("--force" in rest or has_short_flag(rest, "f")))
+        return bool(rest and rest[0] in {"remove", "prune"})
+    if subcommand == "switch":
+        return (
+            any(token.startswith("-C") for token in rest)
+            or has_short_flag(rest, "f")
+            or has_long_prefix(rest, "--force")
+            or has_long_prefix(rest, "--force-c")
+            or has_long_prefix(rest, "--discard")
+        )
+    if subcommand == "tag":
+        return has_short_flag(rest, "d") or has_long_prefix(rest, "--del")
     return subcommand in {"filter-branch", "filter-repo"}
 
 
 def command_is_destructive(command: str, depth: int = 0) -> bool:
     if depth > MAX_DEPTH:
         raise RuntimeError(DYNAMIC_REASON)
-    for part in segments(tokenize(command)):
+    tokenized = tokenize(command)
+    if any(any(marker in token for marker in ("$", "`", "*", "?", "[", "]")) for token in tokenized):
+        raise RuntimeError(DYNAMIC_REASON)
+    if any(re.search(r"\{[^{}]*(?:,|\.\.)[^{}]*\}", token) for token in tokenized):
+        raise RuntimeError(DYNAMIC_REASON)
+    for part in segments(tokenized):
         index = skip_wrapper(part, 0)
         if index >= len(part):
             continue
-        base = os.path.basename(part[index])
         if any(marker in part[index] for marker in ("$", "`")):
             raise RuntimeError(DYNAMIC_REASON)
-        if base in {"sh", "bash", "zsh", "dash"} and "-c" in part[index + 1 :]:
-            option = part.index("-c", index + 1)
-            if option + 1 >= len(part):
+        for position, token in enumerate(part):
+            base = executable_name(token)
+            if base == "eval":
                 raise RuntimeError(DYNAMIC_REASON)
-            if command_is_destructive(part[option + 1], depth + 1):
+            if base == "env" and any(
+                option.startswith("-S") or option.startswith("--split-string") for option in part[position + 1:]
+            ):
+                raise RuntimeError(DYNAMIC_REASON)
+            if base in SHELLS:
+                for option in range(position + 1, len(part)):
+                    shell_flag = part[option]
+                    if shell_flag.startswith("-") and not shell_flag.startswith("--") and "c" in shell_flag[1:]:
+                        if option + 1 >= len(part):
+                            raise RuntimeError(DYNAMIC_REASON)
+                        if command_is_destructive(part[option + 1], depth + 1):
+                            return True
+                        break
+            if base == "git" and destructive(git_arguments(part, position)):
                 return True
-            continue
-        if base == "eval":
-            if command_is_destructive(" ".join(part[index + 1 :]), depth + 1):
-                return True
-            continue
-        args = git_arguments(part, 0)
-        if args is not None and destructive(args):
-            return True
     return False
 
 
