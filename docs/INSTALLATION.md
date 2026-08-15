@@ -7,18 +7,34 @@
 
 ## Repository-scoped use
 
-Clone the repository and run Codex from its root or a child directory. Codex scans `.agents/skills` from the working directory to the repository root.
+Clone without checking out the mutable default branch, then switch directly to the reviewed source commit:
+
+```bash
+git clone --no-checkout https://github.com/Mohammed-Moniem/codex-engineering-system.git
+cd codex-engineering-system
+git switch --detach 9af683d0acfd4a4685db892fe0db0347a5fb032a
+codex
+```
+
+Codex scans `.agents/skills` from the working directory to the repository root. The pinned commit is the reviewed executable/package state for this release; use the default branch only when you deliberately want the current development version.
 
 ## Individual skills
 
-Ask the built-in `$skill-installer` to install a GitHub repository subpath, for example `.agents/skills/wayfinder`. Individual skill directories are self-contained; references, assets, and scripts do not reach outside their skill.
+Ask the built-in `$skill-installer` to install a GitHub repository subpath pinned to the reviewed commit, for example:
+
+```text
+$skill-installer Install the wayfinder skill from
+https://github.com/Mohammed-Moniem/codex-engineering-system/tree/9af683d0acfd4a4685db892fe0db0347a5fb032a/.agents/skills/wayfinder
+```
+
+Individual skill directories are self-contained; references, assets, and scripts do not reach outside their skill.
 
 ## Whole bundle
 
 Add this repository as a Git marketplace, then install the plugin:
 
 ```bash
-codex plugin marketplace add Mohammed-Moniem/codex-engineering-system
+codex plugin marketplace add Mohammed-Moniem/codex-engineering-system --ref 9af683d0acfd4a4685db892fe0db0347a5fb032a
 codex plugin add codex-engineering-system@codex-engineering-system
 ```
 

@@ -39,13 +39,16 @@ The system defaults to local Markdown artifacts and existing repository tools. I
 
 ### Try the repository-scoped skills
 
-Clone the repository, open it in ChatGPT desktop or launch Codex from its root, and the checked-in `.agents/skills` tree is discovered automatically.
+Clone the reviewed source commit, open it in ChatGPT desktop or launch Codex from its root, and the checked-in `.agents/skills` tree is discovered automatically.
 
 ```bash
-git clone https://github.com/Mohammed-Moniem/codex-engineering-system.git
+git clone --no-checkout https://github.com/Mohammed-Moniem/codex-engineering-system.git
 cd codex-engineering-system
+git switch --detach 9af683d0acfd4a4685db892fe0db0347a5fb032a
 codex
 ```
+
+The immutable commit above is the reviewed executable/package state for this release. Following the default branch is appropriate for development, but it is not a reproducible installation.
 
 ### Install one skill
 
@@ -53,7 +56,7 @@ Use the built-in installer and name the GitHub repository path you want. For exa
 
 ```text
 $skill-installer Install the quickplan skill from
-https://github.com/Mohammed-Moniem/codex-engineering-system/tree/main/.agents/skills/quickplan
+https://github.com/Mohammed-Moniem/codex-engineering-system/tree/9af683d0acfd4a4685db892fe0db0347a5fb032a/.agents/skills/quickplan
 ```
 
 Restart Codex only if the newly installed skill does not appear. The [official skill documentation](https://developers.openai.com/codex/build-skills) describes repository and user skill locations, explicit invocation, and installation from other repositories.
@@ -63,7 +66,7 @@ Restart Codex only if the newly installed skill does not appear. The [official s
 This repository is a Git marketplace containing a skills-only plugin:
 
 ```bash
-codex plugin marketplace add Mohammed-Moniem/codex-engineering-system
+codex plugin marketplace add Mohammed-Moniem/codex-engineering-system --ref 9af683d0acfd4a4685db892fe0db0347a5fb032a
 codex plugin add codex-engineering-system@codex-engineering-system
 ```
 
