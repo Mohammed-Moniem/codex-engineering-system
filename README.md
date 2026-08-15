@@ -44,7 +44,7 @@ Clone the reviewed source commit, open it in ChatGPT desktop or launch Codex fro
 ```bash
 git clone --no-checkout https://github.com/Mohammed-Moniem/codex-engineering-system.git
 cd codex-engineering-system
-git switch --detach e29b3ca82b8aa4a4feafa93672aeb39fc07b49fd
+git switch --detach 77189d7a990cdf101147678de5f372b1d37adfba
 codex
 ```
 
@@ -56,7 +56,7 @@ Use the built-in installer and name the GitHub repository path you want. For exa
 
 ```text
 $skill-installer Install the quickplan skill from
-https://github.com/Mohammed-Moniem/codex-engineering-system/tree/e29b3ca82b8aa4a4feafa93672aeb39fc07b49fd/.agents/skills/quickplan
+https://github.com/Mohammed-Moniem/codex-engineering-system/tree/77189d7a990cdf101147678de5f372b1d37adfba/.agents/skills/quickplan
 ```
 
 Restart Codex only if the newly installed skill does not appear. The [official skill documentation](https://developers.openai.com/codex/build-skills) describes repository and user skill locations, explicit invocation, and installation from other repositories.
@@ -66,7 +66,7 @@ Restart Codex only if the newly installed skill does not appear. The [official s
 This repository is a Git marketplace containing a skills-only plugin:
 
 ```bash
-codex plugin marketplace add Mohammed-Moniem/codex-engineering-system --ref e29b3ca82b8aa4a4feafa93672aeb39fc07b49fd
+codex plugin marketplace add Mohammed-Moniem/codex-engineering-system --ref 77189d7a990cdf101147678de5f372b1d37adfba
 codex plugin add codex-engineering-system@codex-engineering-system
 ```
 
